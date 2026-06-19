@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>藥劑師：填滿藥草櫃</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="vignette"></div>
+
+  <header id="topbar">
+    <div class="brand">
+      <span class="rune">⚗</span>
+      <h1>藥劑師 · 填滿藥草櫃</h1>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="label">第幾櫃</span><span id="levelNum">1</span></div>
+      <div class="stat"><span class="label">已裝滿</span><span id="filled">0/0</span></div>
+      <button id="muteBtn" title="音效開關">🔊</button>
+    </div>
+  </header>
+
+  <div id="goalBar">
+    <span>🌿 把籃子裡的藥草拖進<b>同種類</b>的玻璃罐 ·　把每個罐子<b>裝滿</b>就完成</span>
+    <span class="no-rush">慢慢來，沒有時間限制 🍵</span>
+  </div>
+
+  <main id="game">
+    <section id="cabinet" aria-label="藥草櫃"></section>
+
+    <section id="basketArea">
+      <div class="basket-label">🧺 採集籃（拖到對應的罐子；放錯會自己彈回來）</div>
+      <div id="basket" aria-label="採集籃"></div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <div id="overlay" class="overlay show">
+    <div class="panel">
+      <div class="sigil">⚗ ❖ ⚗</div>
+      <h2 id="ovTitle">藥草櫃的夜晚</h2>
+      <p id="ovText">
+        今天採回了滿滿一籃藥草，<br />
+        要把它們一一收進牆上的玻璃罐裡。<br /><br />
+        把每株藥草<b>拖</b>進<b>同種類</b>的罐子，<br />
+        看著罐子慢慢<b>裝滿</b>、亮起微光——<br />
+        所有罐子都滿了，這一櫃就整理好了。
+      </p>
+      <button id="ovBtn" class="btn-primary">開始裝罐</button>
+      <p class="hint">沒有計時、沒有失敗，只有裝滿的踏實感。</p>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

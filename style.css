@@ -1,0 +1,243 @@
+:root {
+  --wood: #4a3326;
+  --wood-dark: #2e1f16;
+  --wood-light: #6b4a35;
+  --parchment: #efe2c4;
+  --ink: #2a2118;
+  --gold: #e7c873;
+  --glow: #8be8ff;
+  --shelf-bg: #3a2719;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+  color: var(--parchment);
+  background:
+    radial-gradient(1200px 700px at 50% -10%, #3b2c4a 0%, #241829 45%, #160f1c 100%);
+  overflow: hidden;
+  user-select: none;
+}
+body { display: flex; flex-direction: column; }
+
+#vignette {
+  position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  box-shadow: inset 0 0 240px 60px rgba(0,0,0,.65);
+  background: radial-gradient(900px 500px at 50% 30%, rgba(139,232,255,.05), transparent 70%);
+}
+
+/* ---------- Top bar ---------- */
+#topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 22px;
+  background: linear-gradient(#2a1d2eee, #1c1422ee);
+  border-bottom: 1px solid #00000080;
+  box-shadow: 0 4px 18px rgba(0,0,0,.5);
+  position: relative; z-index: 20;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand .rune { color: var(--gold); font-size: 22px; filter: drop-shadow(0 0 8px var(--gold)); animation: pulse 3s infinite; }
+.brand h1 { font-size: 19px; letter-spacing: 1px; font-weight: 600;
+  background: linear-gradient(#ffe6b0, #e7c873); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.stats { display: flex; gap: 18px; align-items: center; }
+.stat { display: flex; flex-direction: column; align-items: center; min-width: 60px; }
+.stat .label { font-size: 11px; color: #b9a9c9; letter-spacing: 2px; }
+.stat span:last-child { font-size: 20px; font-weight: 700; color: var(--gold); }
+#muteBtn { background: #00000040; border: 1px solid #ffffff22; color: #fff; font-size: 16px;
+  width: 38px; height: 38px; border-radius: 10px; cursor: pointer; }
+#muteBtn:hover { background: #ffffff18; }
+
+.stat.stars span:last-child { letter-spacing: 2px; color: #ffd966; text-shadow: 0 0 8px #ffd96677; }
+
+/* ---------- Goal bar ---------- */
+#goalBar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 8px 22px; background: #0000002e;
+  border-bottom: 1px solid #00000040; position: relative; z-index: 15;
+  font-size: 13px; color: #d3c6e6;
+}
+#goalBar b { color: var(--gold); }
+#goalBar .no-rush { color: #9fd6b0; white-space: nowrap; }
+
+/* ---------- Layout ---------- */
+#game {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 16px; gap: 14px;
+}
+
+/* ---------- 藥草櫃（木櫃外框 + 玻璃罐格） ---------- */
+#cabinet {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 18px;
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(0deg, #00000018 0 1px, transparent 1px 30px),
+    linear-gradient(165deg, var(--wood-light), var(--wood) 55%, var(--wood-dark));
+  border: 3px solid #00000055;
+  box-shadow: inset 0 2px 0 #ffffff14, inset 0 0 60px #0006, 0 10px 26px #0007;
+}
+
+/* 一格罐子 */
+.jar-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 8px 10px;
+  border-radius: 10px;
+  background: linear-gradient(#00000028, #00000010);
+  border: 1px solid #00000033;
+  box-shadow: inset 0 8px 14px #0005;        /* 凹槽感 */
+  transition: box-shadow .15s, transform .1s;
+}
+.jar-cell.drag-over { box-shadow: 0 0 0 3px var(--glow), inset 0 8px 14px #0005; transform: translateY(-2px); }
+
+/* 玻璃罐 */
+.jar { width: 78px; }
+.cork {
+  width: 46px; height: 14px; margin: 0 auto -3px;
+  background: linear-gradient(#b6864f, #8a5f33);
+  border-radius: 6px 6px 3px 3px;
+  box-shadow: inset 0 2px 0 #ffffff40, 0 2px 4px #0006;
+  position: relative; z-index: 2;
+}
+.glass {
+  position: relative;
+  height: 96px; width: 100%;
+  border-radius: 8px 8px 14px 14px;
+  background: linear-gradient(100deg, #ffffff14, #ffffff06 30%, #00000020);
+  border: 1px solid #ffffff22;
+  box-shadow: inset 0 0 12px #0006, inset 8px 0 10px #ffffff10;
+  overflow: hidden;
+}
+.fill {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 0; transition: height .35s cubic-bezier(.2,.8,.3,1.1);
+  box-shadow: inset 0 6px 10px #ffffff22;
+  border-radius: 0 0 12px 12px;
+}
+.contents { position: absolute; inset: 0; }
+.in-herb {
+  position: absolute; font-size: 16px;
+  filter: drop-shadow(0 1px 1px #0007);
+  animation: settle .35s ease-out;
+}
+.shine {
+  position: absolute; top: 6px; left: 8px; width: 10px; height: 60%;
+  background: linear-gradient(#ffffff55, transparent);
+  border-radius: 8px; pointer-events: none;
+}
+
+.jar-label { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.jar-icon { font-size: 18px; filter: drop-shadow(0 0 5px currentColor); }
+.jar-name { font-size: 13px; font-weight: 700; color: #efe2c4; letter-spacing: 1px; }
+.jar-count { font-size: 12px; color: #d8c9a0; }
+
+/* 裝滿的罐子：微光 */
+.jar-cell.full { box-shadow: 0 0 18px 2px #ffe27a55, inset 0 8px 14px #0004; }
+.jar-cell.full .glass { border-color: #ffe27a99; box-shadow: inset 0 0 16px #ffe27a44; }
+.jar-cell.full .jar-count { color: #ffe9a8; text-shadow: 0 0 8px #ffd96688; }
+.jar-cell.full .cork { animation: pop .4s ease-out; }
+
+/* ---------- 採集籃 ---------- */
+#basketArea {
+  background: linear-gradient(#241f1a, #1a1612);
+  border: 2px solid #00000060;
+  border-radius: 12px;
+  padding: 10px 14px 14px;
+  box-shadow: inset 0 2px 0 #ffffff10, 0 -4px 16px #0006;
+}
+.basket-label { font-size: 13px; color: #cbbda0; letter-spacing: 1px; margin-bottom: 8px; }
+#basket {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  min-height: 70px;
+  padding: 8px;
+  background:
+    repeating-linear-gradient(45deg, #ffffff08 0 8px, transparent 8px 16px);
+  border-radius: 8px;
+}
+
+/* 藥草小圖示 */
+.herb {
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  cursor: grab; flex: 0 0 auto;
+  background: radial-gradient(circle at 35% 30%, #ffffff22, var(--hc, #5aa46e) 70%, #00000040);
+  border: 1px solid #00000044;
+  box-shadow: 0 3px 6px #0007, inset 0 2px 2px #ffffff30;
+  transition: transform .12s, filter .12s;
+}
+.herb:hover { transform: translateY(-5px) scale(1.06); filter: brightness(1.1); z-index: 5; }
+.herb:active { cursor: grabbing; }
+.herb.dragging { opacity: .35; }
+.herb-glyph { font-size: 22px; filter: drop-shadow(0 1px 1px #0008); }
+
+@keyframes settle { from { transform: translateY(-14px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pop { 0% { transform: translateY(0); } 40% { transform: translateY(-5px); } 100% { transform: translateY(0); } }
+
+/* ---------- Toast ---------- */
+#toast {
+  position: fixed; left: 50%; bottom: 26%; transform: translateX(-50%) translateY(20px);
+  background: #1d1426ee; border: 1px solid var(--gold);
+  color: var(--gold); padding: 10px 22px; border-radius: 30px;
+  font-weight: 700; letter-spacing: 1px; font-size: 15px;
+  opacity: 0; pointer-events: none; z-index: 60;
+  box-shadow: 0 0 24px #e7c87355;
+  transition: opacity .25s, transform .25s;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- Overlay ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,6,14,.72); backdrop-filter: blur(4px);
+  opacity: 0; pointer-events: none; transition: opacity .35s;
+}
+.overlay.show { opacity: 1; pointer-events: auto; }
+.panel {
+  width: min(520px, 92vw);
+  background: linear-gradient(#2c2038, #1d1528);
+  border: 1px solid #ffffff1a;
+  border-radius: 18px;
+  padding: 30px 34px 26px;
+  text-align: center;
+  box-shadow: 0 24px 70px #000b, 0 0 60px #8be8ff22;
+}
+.panel .sigil { color: var(--gold); letter-spacing: 8px; font-size: 20px; filter: drop-shadow(0 0 10px var(--gold)); margin-bottom: 6px; }
+.panel h2 { font-size: 26px; margin-bottom: 14px;
+  background: linear-gradient(#ffe9b8, #e7c873); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.panel p { color: #d3c6e6; line-height: 1.8; font-size: 15px; }
+.panel .hint { margin-top: 14px; font-size: 12px; color: #9d8fb3; }
+.btn-primary {
+  margin-top: 20px;
+  background: linear-gradient(#e7c873, #b8923f);
+  color: #2a1d10; font-weight: 800; letter-spacing: 2px;
+  border: none; border-radius: 30px; padding: 13px 38px;
+  font-size: 16px; cursor: pointer;
+  box-shadow: 0 8px 24px #e7c87355, inset 0 1px 0 #fff6;
+  transition: transform .1s, box-shadow .2s;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px #e7c87377; }
+.btn-primary:active { transform: translateY(0); }
+
+/* ---------- FX ---------- */
+.spark {
+  position: fixed; width: 8px; height: 8px; border-radius: 50%;
+  pointer-events: none; z-index: 70;
+  background: radial-gradient(circle, #fff, var(--glow) 60%, transparent);
+}
+
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+@keyframes flashGood {
+  0% { box-shadow: 0 0 0 0 #7dffb0aa; } 50% { box-shadow: 0 0 0 4px #7dffb0aa, 0 0 30px #7dffb0; } 100% { box-shadow: none; }
+}
+@keyframes flashBad {
+  0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); }
+}

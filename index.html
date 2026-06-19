@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>本草藥房：採藥歸櫃（第一人稱）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0b0a12;
+    font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif; color: #efe2c4; user-select: none; }
+  #c { display: block; width: 100%; height: 100%; }
+
+  /* 準星 */
+  #cross {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: 16px; height: 16px; pointer-events: none; z-index: 10; opacity: .85;
+  }
+  #cross::before, #cross::after {
+    content: ""; position: absolute; background: #fff; box-shadow: 0 0 4px #000;
+  }
+  #cross::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+  #cross::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+  #cross.active::before, #cross.active::after { background: #8be8ff; box-shadow: 0 0 8px #8be8ff; }
+
+  /* 提示 */
+  #prompt {
+    position: fixed; left: 50%; top: calc(50% + 26px); transform: translateX(-50%);
+    background: #1d1426cc; border: 1px solid #e7c873; color: #ffe9a8;
+    padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 700;
+    z-index: 10; pointer-events: none; opacity: 0; transition: opacity .15s; white-space: nowrap;
+  }
+  #prompt.show { opacity: 1; }
+
+  /* HUD */
+  #hud {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    background: #1d1426aa; border: 1px solid #ffffff22; border-radius: 12px;
+    padding: 8px 18px; z-index: 10; font-size: 15px; display: flex; gap: 18px; align-items: center;
+  }
+  #hud b { color: #e7c873; }
+  #hud .held { color: #9fd6b0; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 16%; transform: translateX(-50%) translateY(10px);
+    background: #1d1426ee; border: 1px solid #e7c873; color: #ffe9a8;
+    padding: 9px 20px; border-radius: 24px; font-weight: 700; z-index: 12;
+    opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Overlay */
+  #overlay {
+    position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+    background: rgba(8,6,12,.82); backdrop-filter: blur(4px); cursor: pointer;
+  }
+  #overlay.hide { display: none; }
+  .panel {
+    width: min(540px, 92vw); background: linear-gradient(#2c2620, #1d1812);
+    border: 1px solid #ffffff1a; border-radius: 18px; padding: 32px 36px; text-align: center;
+    box-shadow: 0 24px 70px #000b, 0 0 60px #e7c87322;
+  }
+  .panel .sigil { color: #e7c873; letter-spacing: 8px; font-size: 20px; filter: drop-shadow(0 0 10px #e7c873); margin-bottom: 8px; }
+  .panel h2 { font-size: 26px; margin-bottom: 14px;
+    background: linear-gradient(#ffe9b8, #e7c873); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .panel p { color: #d8cdbb; line-height: 1.9; font-size: 15px; }
+  .panel .keys { margin: 16px 0 4px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .key { background: #00000050; border: 1px solid #ffffff22; border-radius: 8px; padding: 6px 12px; font-size: 13px; }
+  .panel .big { margin-top: 18px; font-size: 16px; color: #e7c873; font-weight: 800; letter-spacing: 1px; }
+  .panel .hint { margin-top: 10px; font-size: 12px; color: #9d8f7b; }
+</style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="cross"></div>
+  <div id="prompt"></div>
+  <div id="hud">已擺好 <b id="filled">0/0</b> · 手上：<span class="held" id="held">空手</span></div>
+  <div id="toast"></div>
+
+  <div id="overlay">
+    <div class="panel">
+      <div class="sigil">⚗ ❖ ⚗</div>
+      <h2>本草藥房 · 採藥歸櫃</h2>
+      <p>
+        藥圃裡種著 <b>10 種中藥材</b>(人參、枸杞、靈芝、菊花…)。<br/>
+        到藥圃<b>採摘</b>，綁成一束帶著，再走進<b>藥房</b>，<br/>
+        把藥草<b>擺到藥櫃上</b>對應的位置。全部歸位就整理完成。
+      </p>
+      <div class="keys">
+        <span class="key">點擊畫面｜進入 / 採摘 / 擺放</span>
+        <span class="key">可混拿多種、最多 3 束</span>
+        <span class="key">W A S D｜走動</span>
+        <span class="key">滑鼠｜環顧</span>
+        <span class="key">Q / 右鍵｜放回地上</span>
+        <span class="key">Esc｜放開滑鼠</span>
+      </div>
+      <div class="big">點擊畫面開始 ⚗</div>
+      <p class="hint">沒有計時、沒有失敗，慢慢逛慢慢裝 🍵</p>
+    </div>
+  </div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="fp.js"></script>
+</body>
+</html>
