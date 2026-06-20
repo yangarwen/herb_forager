@@ -2,13 +2,36 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>本草藥房：整理藥草（第一人稱）</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; background: #0b0a12;
     font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif; color: #efe2c4; user-select: none; }
-  #c { display: block; width: 100%; height: 100%; }
+  #c { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  /* 觸控介面（預設隱藏，只有觸控裝置顯示） */
+  #joy, #dropBtn, #pauseBtn { display: none; }
+  body.touch #dropBtn, body.touch #pauseBtn { display: flex; }
+  .touchonly { display: none; }
+  body.touch .touchonly { display: inline-block; }
+  body.touch .deskonly { display: none; }
+  #joy {
+    position: fixed; width: 132px; height: 132px; margin: -66px 0 0 -66px; z-index: 14;
+    border-radius: 50%; background: #ffffff14; border: 2px solid #ffffff3a; pointer-events: none;
+  }
+  #joyKnob {
+    position: absolute; left: 50%; top: 50%; width: 58px; height: 58px;
+    border-radius: 50%; background: #e7c87355; border: 2px solid #e7c873aa; pointer-events: none;
+    transform: translate(-50%,-50%);
+  }
+  #dropBtn, #pauseBtn {
+    position: fixed; z-index: 15; align-items: center; justify-content: center;
+    background: #1d1426cc; border: 1px solid #e7c873; color: #ffe9a8; border-radius: 14px;
+    font-weight: 700; -webkit-tap-highlight-color: transparent;
+  }
+  #dropBtn { right: 18px; bottom: 24px; width: 88px; height: 64px; font-size: 14px; }
+  #pauseBtn { left: 14px; top: 14px; width: 48px; height: 48px; font-size: 22px; border-radius: 50%; }
 
   /* 準星 */
   #cross {
@@ -76,6 +99,11 @@
   <div id="hud">已擺好 <b id="filled">0/0</b> · 手上：<span class="held" id="held">空手</span></div>
   <div id="toast"></div>
 
+  <!-- 觸控介面（手機） -->
+  <div id="joy"><div id="joyKnob"></div></div>
+  <button id="dropBtn">放回地上</button>
+  <button id="pauseBtn">⏸</button>
+
   <div id="overlay">
     <div class="panel">
       <div class="sigil">⚗ ❖ ⚗</div>
@@ -86,14 +114,17 @@
         把藥材<b>撿來裝進對應藥名的玻璃罐</b>，每罐裝好即完成。
       </p>
       <div class="keys">
-        <span class="key">點擊畫面｜進入 / 撿起 / 放入抽屜</span>
-        <span class="key">可混拿多種、最多 3 束</span>
-        <span class="key">W A S D｜走動</span>
-        <span class="key">滑鼠｜環顧</span>
-        <span class="key">Q / 右鍵｜放回地上</span>
-        <span class="key">Esc｜放開滑鼠</span>
+        <span class="key deskonly">點擊畫面｜進入 / 撿起 / 放入</span>
+        <span class="key deskonly">W A S D｜走動</span>
+        <span class="key deskonly">滑鼠｜環顧</span>
+        <span class="key deskonly">Q / 右鍵｜放回地上</span>
+        <span class="key deskonly">Esc｜放開滑鼠</span>
+        <span class="key touchonly">左半｜搖桿走動</span>
+        <span class="key touchonly">右半拖曳｜環顧</span>
+        <span class="key touchonly">點一下｜撿起 / 放入</span>
+        <span class="key touchonly">放回鈕｜放回地上</span>
       </div>
-      <div class="big">點擊畫面開始 ⚗</div>
+      <div class="big">點一下畫面開始 ⚗</div>
       <p class="hint">沒有計時、沒有失敗，慢慢撿慢慢收 🍵</p>
     </div>
   </div>

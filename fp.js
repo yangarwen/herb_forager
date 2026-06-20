@@ -950,7 +950,7 @@ function arrangeHand() {
 }
 
 function interact() {
-  if (!controls.isLocked || !aimTarget) return;
+  if (!active() || !aimTarget) return;
 
   if (aimTarget.type === "herb") {
     // 撿拾（一次最多拿 MAX_CARRY 份，種類不限可混拿）
@@ -1123,6 +1123,12 @@ function showPause() {
 }
 
 // ---------- 控制 / 輸入 ----------
+const IS_TOUCH = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+let touchStarted = false;                  // 手機：點過開始畫面後為 true
+function active() { return controls.isLocked || touchStarted; }
+camera.rotation.order = "YXZ";             // 手機自行管理視角（不靠 Pointer Lock）
+let yaw = 0, pitch = 0;
+
 const keys = {};
 addEventListener("keydown", (e) => {
   keys[e.code] = true;
@@ -1132,10 +1138,12 @@ addEventListener("keydown", (e) => {
 addEventListener("keyup", (e) => (keys[e.code] = false));
 
 const overlay = document.getElementById("overlay");
-overlay.addEventListener("click", () => {
+function startPlay() {
   if (pendingNext) { pendingNext = false; buildCabinet(); }   // 重新整理一輪
-  controls.lock();
-});
+  if (IS_TOUCH) { touchStarted = true; overlay.classList.add("hide"); }
+  else controls.lock();
+}
+overlay.addEventListener("click", startPlay);
 controls.addEventListener("lock", () => overlay.classList.add("hide"));
 controls.addEventListener("unlock", () => {
   if (!pendingNext) showPause();   // 非過關的解鎖 = 按 Esc 暫停，顯示暫停面板
@@ -1143,11 +1151,63 @@ controls.addEventListener("unlock", () => {
 });
 
 addEventListener("mousedown", (e) => {
-  if (!controls.isLocked) return;
+  if (!controls.isLocked) return;   // 桌機（鎖定中）才用滑鼠
   if (e.button === 0) interact();
   else if (e.button === 2) dropHeld();
 });
 addEventListener("contextmenu", (e) => e.preventDefault());
+
+// ---------- 觸控操作（手機）：左半虛擬搖桿走動、右半拖曳環顧、點一下互動 ----------
+if (IS_TOUCH) document.body.classList.add("touch");
+const joyVec = { x: 0, y: 0 };
+(function setupTouch() {
+  const joy = document.getElementById("joy"), knob = document.getElementById("joyKnob"), cv = document.getElementById("c");
+  const R = 56;
+  let joyId = null, joyBX = 0, joyBY = 0, lookId = null, lookX = 0, lookY = 0, moved = false;
+  function onStart(e) {
+    if (!touchStarted) return;
+    for (const t of e.changedTouches) {
+      if (t.clientX < innerWidth * 0.45 && joyId === null) {
+        joyId = t.identifier; joyBX = t.clientX; joyBY = t.clientY;
+        joy.style.left = joyBX + "px"; joy.style.top = joyBY + "px"; joy.style.display = "block";
+        knob.style.transform = "translate(-50%,-50%)";
+      } else if (lookId === null) { lookId = t.identifier; lookX = t.clientX; lookY = t.clientY; moved = false; }
+    }
+    e.preventDefault();
+  }
+  function onMove(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyId) {
+        let dx = t.clientX - joyBX, dy = t.clientY - joyBY;
+        const d = Math.hypot(dx, dy); if (d > R) { dx = dx / d * R; dy = dy / d * R; }
+        joyVec.x = dx / R; joyVec.y = dy / R;
+        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+      } else if (t.identifier === lookId) {
+        const dx = t.clientX - lookX, dy = t.clientY - lookY; lookX = t.clientX; lookY = t.clientY;
+        if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+        yaw -= dx * 0.004; pitch = Math.max(-1.4, Math.min(1.4, pitch - dy * 0.004));
+        camera.rotation.set(pitch, yaw, 0);
+      }
+    }
+    e.preventDefault();
+  }
+  function onEnd(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyId) { joyId = null; joyVec.x = joyVec.y = 0; joy.style.display = "none"; }
+      else if (t.identifier === lookId) { if (!moved) interact(); lookId = null; }
+    }
+  }
+  cv.addEventListener("touchstart", onStart, { passive: false });
+  cv.addEventListener("touchmove", onMove, { passive: false });
+  cv.addEventListener("touchend", onEnd);
+  cv.addEventListener("touchcancel", onEnd);
+  const dropBtn = document.getElementById("dropBtn");
+  if (dropBtn) dropBtn.addEventListener("click", (e) => { e.stopPropagation(); dropHeld(); });
+  const pauseBtn = document.getElementById("pauseBtn");
+  if (pauseBtn) pauseBtn.addEventListener("click", (e) => {
+    e.stopPropagation(); touchStarted = false; joyVec.x = joyVec.y = 0; showPause(); overlay.classList.remove("hide");
+  });
+})();
 
 // ---------- 移動（平坦地板 + 牆/家具碰撞） ----------
 const dirVec = new THREE.Vector3();
@@ -1155,13 +1215,14 @@ function inBlocker(b, x, z, r) {
   return x > b.minX - r && x < b.maxX + r && z > b.minZ - r && z < b.maxZ + r;
 }
 function move(dt) {
-  if (!controls.isLocked) return;
+  if (!active()) return;
   const speed = 3.0;
   dirVec.set(0, 0, 0);
   if (keys["KeyW"] || keys["ArrowUp"]) dirVec.z += 1;
   if (keys["KeyS"] || keys["ArrowDown"]) dirVec.z -= 1;
   if (keys["KeyA"] || keys["ArrowLeft"]) dirVec.x -= 1;
   if (keys["KeyD"] || keys["ArrowRight"]) dirVec.x += 1;
+  if (touchStarted) { dirVec.x += joyVec.x; dirVec.z += -joyVec.y; }   // 手機搖桿
   dirVec.normalize();
 
   const o = controls.getObject();
