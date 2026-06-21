@@ -892,9 +892,9 @@ raycaster.far = 4.4;
 const center = new THREE.Vector2(0, 0);
 let aimTarget = null; // { type, data/herb, object }
 
-function updateAim() {
-  raycaster.setFromCamera(center, camera);
-
+// 從指定的 NDC 座標射出射線，挑出最近的可互動物（桌上藥材 / 藥罐）
+function pickAt(ndc) {
+  raycaster.setFromCamera(ndc, camera);
   // 撿拾目標（桌上的乾藥材）
   let herbHit = null;
   const hh = raycaster.intersectObjects(herbMeshes, true);
@@ -902,17 +902,35 @@ function updateAim() {
     let o = hh[0].object; while (o && !o.userData.type) o = o.parent;
     if (o) herbHit = { type: "herb", herb: o.userData.herb, object: o, dist: hh[0].distance };
   }
-  // 擺放目標（抽屜，需手上有藥材才有意義）
+  // 擺放目標（藥罐，需手上有藥材才有意義）
   let slotHit = null;
   if (heldMeshes.length) {
     const sh = raycaster.intersectObjects(slotMeshes, false);
     if (sh.length) slotHit = { type: "slot", data: sh[0].object.userData.data, dist: sh[0].distance };
   }
   // 取較近的那個
-  let hit = null;
-  if (herbHit && slotHit) hit = herbHit.dist <= slotHit.dist ? herbHit : slotHit;
-  else hit = herbHit || slotHit;
-  aimTarget = hit;
+  if (herbHit && slotHit) return herbHit.dist <= slotHit.dist ? herbHit : slotHit;
+  return herbHit || slotHit;
+}
+
+// 手機：把螢幕點擊座標換成 NDC，並在點擊點附近容錯尋找（小目標也好點）
+function clientToNdc(cx, cy) {
+  return center.clone().set((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1);
+}
+function pickNear(cx, cy) {
+  let hit = pickAt(clientToNdc(cx, cy));
+  if (hit) return hit;
+  const rad = 32;   // 點偏了也能撿到附近的藥材
+  for (const [dx, dy] of [[rad,0],[-rad,0],[0,rad],[0,-rad],[rad,rad],[-rad,-rad],[rad,-rad],[-rad,rad]]) {
+    hit = pickAt(clientToNdc(cx + dx, cy + dy));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function updateAim() {
+  aimTarget = pickAt(center);
+  const hit = aimTarget;
 
   const cross = document.getElementById("cross");
   const prompt = document.getElementById("prompt");
@@ -941,21 +959,25 @@ const heldHas = (id) => heldMeshes.some((m) => m.userData.herb === id);
 
 // 把手上的乾藥材在相機前一字排開
 function arrangeHand() {
+  const touch = IS_TOUCH;
   heldMeshes.forEach((m, i) => {
-    const off = (i - (heldMeshes.length - 1) / 2) * 0.2;
-    m.position.set(0.36 + off, -0.44 - (i % 2) * 0.03, -0.9);
+    const off = (i - (heldMeshes.length - 1) / 2) * (touch ? 0.16 : 0.2);
+    if (touch) m.position.set(-0.26 + off, -0.32, -0.85);   // 手機：偏左、抬高，避開右下按鈕又不被畫面下緣切掉
+    else m.position.set(0.36 + off, -0.44 - (i % 2) * 0.03, -0.9);
     m.rotation.set(0, 0, 0);
-    m.scale.setScalar(1.05);
+    m.scale.setScalar(touch ? 0.85 : 1.05);
   });
 }
 
-function interact() {
-  if (!active() || !aimTarget) return;
+function interact(explicit) {
+  if (!active()) return;
+  const target = explicit || aimTarget;
+  if (!target) return;
 
-  if (aimTarget.type === "herb") {
+  if (target.type === "herb") {
     // 撿拾（一次最多拿 MAX_CARRY 份，種類不限可混拿）
     if (heldMeshes.length >= MAX_CARRY) { toast(`手上已滿（${MAX_CARRY} 份）`); return; }
-    const o = aimTarget.object;
+    const o = target.object;
     const herbId = o.userData.herb;
     (o.parent || tableGroup).remove(o);
     const idx = herbMeshes.indexOf(o); if (idx >= 0) herbMeshes.splice(idx, 1);
@@ -966,13 +988,12 @@ function interact() {
     sparkle(new THREE.Vector3().setFromMatrixPosition(o.matrixWorld));
     sfx.pick(); updateHud();
 
-  } else if (aimTarget.type === "slot" && heldMeshes.length) {
-    const slot = aimTarget.data;
+  } else if (target.type === "slot" && heldMeshes.length) {
+    const slot = target.data;
     if (slot.count >= slot.cap) { toast("這罐已經裝滿了 ✨"); return; }
     if (!heldHas(slot.herb)) { toast("手上沒有「" + nameOf(slot.herb) + "」"); sfx.back(); return; }
-    // 從手上挑出符合這格的藥材，放到滿為止
-    const avail = heldMeshes.filter((m) => m.userData.herb === slot.herb).length;
-    const n = Math.min(avail, slot.cap - slot.count);
+    // 一次只放一株（點一下放一株）
+    const n = 1;
     for (let j = 0; j < n; j++) {
       const i = slot.count;
       const k = heldMeshes.findIndex((m) => m.userData.herb === slot.herb);
@@ -1194,7 +1215,7 @@ const joyVec = { x: 0, y: 0 };
   function onEnd(e) {
     for (const t of e.changedTouches) {
       if (t.identifier === joyId) { joyId = null; joyVec.x = joyVec.y = 0; joy.style.display = "none"; }
-      else if (t.identifier === lookId) { if (!moved) interact(); lookId = null; }
+      else if (t.identifier === lookId) { if (!moved) interact(pickNear(t.clientX, t.clientY)); lookId = null; }
     }
   }
   cv.addEventListener("touchstart", onStart, { passive: false });
@@ -1216,7 +1237,7 @@ function inBlocker(b, x, z, r) {
 }
 function move(dt) {
   if (!active()) return;
-  const speed = 3.0;
+  const speed = IS_TOUCH ? 1.7 : 3.0;   // 手機搖桿移動放慢，較好控制
   dirVec.set(0, 0, 0);
   if (keys["KeyW"] || keys["ArrowUp"]) dirVec.z += 1;
   if (keys["KeyS"] || keys["ArrowDown"]) dirVec.z -= 1;
