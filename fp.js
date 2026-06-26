@@ -297,7 +297,7 @@ const ATLAS = [
 const NATURE_NAME = { warm: "溫熱", neutral: "平和", cold: "寒涼" };
 
 // ---------- 房間尺寸 ----------
-const ROOM = 18, HALF = ROOM / 2, WALL_H = 4.0;
+const ROOM = 12, HALF = ROOM / 2, WALL_H = 4.0;
 
 // ---------- 基礎 ----------
 const canvas = document.getElementById("c");
@@ -314,23 +314,23 @@ scene.background = new THREE.Color(0x140f0a);   // 室內暖暗背景
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 100);
 const controls = new PointerLockControls(camera, document.body);
-controls.getObject().position.set(0, 1.6, 6);   // 站在房間中央偏前，面向後牆的百子櫃
+controls.getObject().position.set(0, 1.6, 4);   // 站在房間中央偏前，面向後牆的百子櫃
 scene.add(controls.getObject());
 
 const mat = (hex, rough = 0.95) => new THREE.MeshStandardMaterial({ color: hex, roughness: rough });
 
-// ---------- 燈光（藥房暖意） ----------
-scene.add(new THREE.HemisphereLight(0xfff1de, 0x3a2e22, 0.85));
-scene.add(new THREE.AmbientLight(0xfff5ea, 0.5));
-// 從窗戶斜射進來的暖陽（投影）
-const sun = new THREE.DirectionalLight(0xffe2b4, 1.25);
-sun.position.set(8.5, 7, 5); sun.castShadow = true;
+// ---------- 燈光（藥房暖意：避光收藥，不開窗、無日照，只用暖燈）----------
+scene.add(new THREE.HemisphereLight(0xffe9cc, 0x2a221a, 0.6));
+scene.add(new THREE.AmbientLight(0xfff0e0, 0.5));
+// 自天花板斜灑的暖燈（兼作陰影來源）——非日照，免得曬壞藥材
+const sun = new THREE.DirectionalLight(0xffd9a8, 0.7);
+sun.position.set(2.5, 8, 0.5); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 1, far: 32 });
 sun.shadow.bias = -0.0004;
-sun.target.position.set(0, 1, -4); scene.add(sun.target); scene.add(sun);
-// 天花板暖光吊燈
-const lamp = new THREE.PointLight(0xffc27a, 1.7, 24, 1.6);
+sun.target.position.set(0, 1, -2); scene.add(sun.target); scene.add(sun);
+// 天花板暖光吊燈（室內主光）
+const lamp = new THREE.PointLight(0xffc27a, 2.2, 26, 1.6);
 lamp.position.set(0, 3.4, -2); scene.add(lamp);
 const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 14),
   new THREE.MeshStandardMaterial({ color: 0xffd79a, emissive: 0xffa64d, emissiveIntensity: 1.3 }));
@@ -348,15 +348,15 @@ function buildRoom() {
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
   // 地毯（百子櫃前）
   const rug = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 3.2), mat(0x4a5260, 0.98));   // 沉穩藍染地毯（降艷、添冷色對比）
-  rug.rotation.x = -Math.PI / 2; rug.position.set(0, 0.01, -5.5); scene.add(rug);
+  rug.rotation.x = -Math.PI / 2; rug.position.set(0, 0.01, -HALF + 2.2); scene.add(rug);
 
   // 天花板
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(ROOM, ROOM), mat(0x3a2c20, 0.98));
   ceil.rotation.x = Math.PI / 2; ceil.position.y = WALL_H; scene.add(ceil);
   // 天花板橫樑
-  for (let i = -3; i <= 3; i++) {
+  for (let z = -HALF + 1.2; z <= HALF - 1.0; z += 2.4) {
     const beam = new THREE.Mesh(new THREE.BoxGeometry(ROOM, 0.18, 0.16), mat(0x4a3422, 0.92));
-    beam.position.set(0, WALL_H - 0.1, i * 2.4); scene.add(beam);
+    beam.position.set(0, WALL_H - 0.1, z); scene.add(beam);
   }
 
   // 四面牆（暖色灰泥木骨架）
@@ -368,7 +368,7 @@ function buildRoom() {
   wall(ROOM, WALL_H, 0, WALL_H / 2, -HALF, 0);          // 後牆
   wall(ROOM, WALL_H, 0, WALL_H / 2, HALF, 0);           // 前牆
   wall(ROOM, WALL_H, -HALF, WALL_H / 2, 0, Math.PI / 2);// 左牆
-  wall(ROOM, WALL_H, HALF, WALL_H / 2, 0, Math.PI / 2); // 右牆（含窗，下面再貼窗）
+  wall(ROOM, WALL_H, HALF, WALL_H / 2, 0, Math.PI / 2); // 右牆
   // 踢腳板
   const baseMat = mat(0x5e4128, 0.9);
   [[ROOM, 0, -HALF + 0.11, 0], [ROOM, 0, HALF - 0.11, 0],
@@ -378,33 +378,26 @@ function buildRoom() {
       b.position.set(x, 0.14, z); b.rotation.y = ry; scene.add(b);
     });
 
-  // 後牆的窗戶（發光玻璃 + 木框，讓暖陽有來源）；抬高到後牆藥櫃上方
-  const winY = 2.95;
-  const gpane = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.8), new THREE.MeshBasicMaterial({ color: 0xfff0cf }));
-  gpane.position.set(0, winY, -HALF + 0.11); scene.add(gpane);
-  const fr = mat(0x5e4128, 0.9);
-  [[3.1, winY - 1.0], [3.1, winY + 1.0]].forEach(([wd, y]) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(wd, 0.16, 0.14), fr); m.position.set(0, y, -HALF + 0.12); scene.add(m);
-  });
-  [[-1.4], [1.4]].forEach(([x]) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.9, 0.14), fr); m.position.set(x, winY, -HALF + 0.12); scene.add(m);
-  });
-  const mull = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.9, 0.1), fr); mull.position.set(0, winY, -HALF + 0.12); scene.add(mull);
+  // 後牆不開窗（中藥需避光收存，免得日曬受潮壞掉）；改掛一方「本草堂」匾額點題
+  const plaqueY = 2.85;
+  const plaque = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.7, 0.08), mat(0x4a3120, 0.7));
+  plaque.position.set(0, plaqueY, -HALF + 0.12); plaque.castShadow = true; scene.add(plaque);
+  const ptext = makeWallTitle("本草堂");
+  ptext.scale.set(1.15, 1.15, 1); ptext.position.set(0, plaqueY, -HALF + 0.17); scene.add(ptext);
 
   // 前牆掛幾束風乾的藥草（裝飾）；只用「乾草」類，倒掛才合理
   const hangable = HERBS.filter((h) => ["mint", "fern", "clover", "lavender"].includes(h.shape));
   for (let i = 0; i < 7; i++) {
     const h = hangable[(Math.random() * hangable.length) | 0];
     const b = makeHerbModel(h); b.scale.setScalar(1.4);
-    b.position.set(-6 + i * 2, 3.1, HALF - 0.25);
+    b.position.set(-(HALF - 1) + i * (2 * (HALF - 1) / 6), 3.1, HALF - 0.25);
     b.rotation.set(0, 0, Math.PI);   // 倒掛
     scene.add(b);
   }
   // 研缽（擺在地上一角當道具）
   const mortar = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.16, 16), mat(0x8a8078, 0.6));
-  mortar.position.set(3.8, 0.08, -1.0); mortar.castShadow = true; scene.add(mortar);
+  mortar.position.set(2.8, 0.08, -1.0); mortar.castShadow = true; scene.add(mortar);
 
-  buildStraw();
   buildCabinets();
 }
 
@@ -429,42 +422,9 @@ function planks() {
   return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 });
 }
 
-// ---------- 地上的稻草區（攤鋪乾藥材的地方） ----------
-const STRAW = [
-  { cx: 0,    cz: -2.2, w: 7.5, d: 4.4 },   // 中央
-  { cx: -5.6, cz: 3.0,  w: 4.8, d: 5.6 },   // 左前
-  { cx: 5.6,  cz: 3.0,  w: 4.8, d: 5.6 },   // 右前
-];
-// 乾淨的暖色稻草貼圖（同向細稻稈，無格線、無雜質）
-function makeMatTexture() {
-  const cv = document.createElement("canvas"); cv.width = cv.height = 256;
-  const ctx = cv.getContext("2d");
-  ctx.fillStyle = "#c6a85e"; ctx.fillRect(0, 0, 256, 256);   // 暖色稻草底
-  const cols = ["#cdb06a", "#d8c179", "#c2a052", "#caa860", "#bb9850"];
-  for (let i = 0; i < 2200; i++) {                            // 近水平、同向的細稻稈，乾淨不雜亂
-    ctx.strokeStyle = cols[(Math.random() * cols.length) | 0];
-    ctx.globalAlpha = 0.25 + Math.random() * 0.35;
-    ctx.lineWidth = 1 + Math.random() * 1.2;
-    const x = Math.random() * 256, y = Math.random() * 256, len = 14 + Math.random() * 30, a = (Math.random() - 0.5) * 0.22;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  const tex = new THREE.CanvasTexture(cv);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
-  return tex;
-}
-// 鋪稻草：每區一塊乾淨的稻草墊（可踩、不擋路）
-function buildStraw() {
-  STRAW.forEach(({ cx, cz, w, d }) => {
-    const tex = makeMatTexture();
-    tex.repeat.set(Math.max(1, Math.round(w / 3)), Math.max(1, Math.round(d / 3)));
-    const pad = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
-    pad.rotation.x = -Math.PI / 2; pad.position.set(cx, 0.02, cz); pad.receiveShadow = true; scene.add(pad);
-  });
-}
-
 // ---------- 配藥台（客人交方處） ----------
 const counterMeshes = [];
+const atlasMeshes = [];   // 配藥台上的「本草圖鑑」：準星對準可翻閱
 function buildCounter() {
   const g = new THREE.Group();
   const cz = 2.6, w = 2.2, d = 0.72, h = 0.95;
@@ -477,12 +437,26 @@ function buildCounter() {
   tray.position.set(0, h + 0.1, cz); g.add(tray);
   const sign = makeHeader("配藥台");
   sign.scale.set(1.1, 0.28, 1); sign.position.set(0, h + 0.36, cz - d / 2 + 0.02); g.add(sign);
+
+  // 檯面上的「本草圖鑑」：遊戲中用準星對準、按左鍵即可翻閱收集牆（不必放開滑鼠）
+  const bookY = h + 0.08;                         // 檯面上緣
+  const cover = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.24), mat(0x6a3320, 0.55));
+  cover.position.set(-0.62, bookY + 0.035, cz); cover.castShadow = true; g.add(cover);
+  const pages = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.05, 0.21), mat(0xefe6cf, 0.9));
+  pages.position.set(-0.62, bookY + 0.035, cz); g.add(pages);
+  const blabel = makeJarLabel("圖鑑");            // 浮在書上方的小金籤，標示可翻閱
+  blabel.scale.set(0.24, 0.105, 1); blabel.position.set(-0.62, bookY + 0.26, cz); g.add(blabel);
   scene.add(g);
+
   // 交方命中盒
   const hit = new THREE.Mesh(new THREE.BoxGeometry(w, h + 0.5, d), new THREE.MeshBasicMaterial({ visible: false }));
   hit.position.set(0, (h + 0.5) / 2, cz); scene.add(hit);
   hit.userData = { type: "counter" };
   counterMeshes.push(hit);
+  // 圖鑑命中盒（放大好對準）
+  const bhit = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.4), new THREE.MeshBasicMaterial({ visible: false }));
+  bhit.position.set(-0.62, bookY + 0.12, cz); bhit.userData = { type: "atlas" }; scene.add(bhit);
+  atlasMeshes.push(bhit);
   blockers.push({ minX: -w / 2 - 0.1, maxX: w / 2 + 0.1, minZ: cz - d / 2 - 0.2, maxZ: cz + d / 2 + 0.2 });
 }
 
@@ -737,8 +711,9 @@ function makeJarSlot(parent, h, lx, ly) {
   cork.position.y = JH + 0.03; cork.castShadow = true; g.add(cork);
   // 藥名標籤（羊皮紙藥籤，貼在罐身正面）
   const sign = makeJarLabel(h.name);
-  // 縮小、上移到罐身上半的空玻璃處：比罐窄（兩側露出玻璃），藥材在下半部看得見
-  sign.scale.set(JW * 0.48, JH * 0.26, 1); sign.position.set(0, JH * 0.62, JR + 0.02); g.add(sign);
+  // 名牌移出玻璃罐：放到罐子「下方」的層架空檔、貼齊櫃子前緣，完全不擋玻璃瓶
+  sign.scale.set(JW * 0.78, 0.1, 1);
+  sign.position.set(0, -0.10, SHELF_D - JAR_Z + 0.01); g.add(sign);
   // 罐內備好藥材（庫存：架子＝可抓取的藥材，照方抓藥用）
   const spacing = 0.075;
   for (let i = 0; i < PER_HERB; i++) {
@@ -1105,6 +1080,9 @@ function pickAt(ndc) {
   // 配藥台（交方）
   const ch = raycaster.intersectObjects(counterMeshes, false);
   if (ch.length && (!best || ch[0].distance < best.dist)) best = { type: "counter", dist: ch[0].distance };
+  // 本草圖鑑（翻閱收集牆）：小目標、刻意對準，優先於配藥台（其命中盒較大會擋在書前）
+  const ah = raycaster.intersectObjects(atlasMeshes, false);
+  if (ah.length) best = { type: "atlas", dist: ah[0].distance };
   return best;
 }
 
@@ -1138,6 +1116,8 @@ function updateAim() {
       else if (heldHas(id)) prompt.textContent = `已抓「${nameOf(id)}」`;
       else if (rx.herbs.includes(id)) prompt.textContent = `抓藥：${nameOf(id)}`;
       else prompt.textContent = `${nameOf(id)}（這帖用不到）`;
+    } else if (hit.type === "atlas") {
+      prompt.textContent = "本草圖鑑 · 翻閱收集牆";
     } else { // counter
       if (!rx) prompt.textContent = "今日藥方已配齊 ✦";
       else {
@@ -1175,6 +1155,7 @@ function interact(explicit) {
   if (!target) return;
   if (target.type === "jar") takeHerb(target.data.herb, target.data);
   else if (target.type === "counter") submitFormula();
+  else if (target.type === "atlas") openAtlas();
 }
 
 // 從藥罐抓一味藥到藥包（只收當前藥方需要、且尚未抓過的）
