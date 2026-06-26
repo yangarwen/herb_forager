@@ -267,6 +267,29 @@ const FORMULAS = [
     who: "病後虛煩、坐臥不安的書生。" },
   { name: "甘草乾薑湯", cure: "溫中復陽，治虛寒、手足不溫", herbs: ["gancao","ganjiang"],
     who: "畏寒、口淡多涎的車夫。" },
+  // —— 更多經典名方（組成皆取自本堂百味藥；大棗即紅棗、乾薑即本堂乾薑）——
+  { name: "保元湯", cure: "補氣溫陽，治元氣虛弱、倦怠畏寒", herbs: ["renshen","huangqi","gancao","rougui"],
+    who: "氣弱畏寒、說話低微的老掌櫃，動則氣喘。" },
+  { name: "佛手散", cure: "養血活血、行氣調經，婦人良方（即芎歸湯）", herbs: ["danggui","chuanxiong"],
+    who: "經期腹痛、面色不華的繡坊姑娘。" },
+  { name: "三黃瀉心湯", cure: "瀉火解毒，治火熱亢盛、心煩吐衄", herbs: ["dahuang","huanglian","huangqin"],
+    who: "面紅目赤、心煩易怒、時而鼻血的壯漢。" },
+  { name: "附子理中丸", cure: "溫陽散寒、補益脾胃，治脾胃虛寒甚", herbs: ["fuzi","renshen","ganjiang","baizhu","gancao"],
+    who: "腹冷喜暖、下利清穀、手足不溫的老農。" },
+  { name: "葛根芩連湯", cure: "解表清裡，治身熱下利、協熱泄瀉", herbs: ["gegen","huangqin","huanglian","gancao"],
+    who: "暑天貪涼、身熱腹瀉、肛門灼熱的少年。" },
+  { name: "黃芩湯", cure: "清熱止利，治熱瀉熱痢、腹痛", herbs: ["huangqin","baishao","gancao","hongzao"],
+    who: "腹痛下痢、瀉而臭穢、口苦的趕考書生。" },
+  { name: "交泰丸", cure: "交通心腎，治心腎不交、心煩失眠", herbs: ["huanglian","rougui"],
+    who: "夜不能寐、心煩口乾、多夢的賬房先生。" },
+  { name: "戊己丸", cure: "疏肝清熱、和胃止痛，治肝脾不和", herbs: ["huanglian","wuzhuyu","baishao"],
+    who: "脅脹泛酸、腹痛腸鳴的綢緞莊老闆娘。" },
+  { name: "半夏瀉心湯", cure: "寒熱平調、消痞散結，治心下痞滿嘔利", herbs: ["banxia","huangqin","huanglian","renshen","ganjiang","gancao","hongzao"],
+    who: "心下痞悶、嘔惡腸鳴、寒熱夾雜的船家。" },
+  { name: "麥門冬湯", cure: "潤肺養胃、降逆下氣，治虛熱咳逆、咽乾", herbs: ["maidong","banxia","renshen","gancao","hongzao"],
+    who: "乾咳少痰、咽乾氣逆、病後虛羸的私塾先生。" },
+  { name: "連理湯", cure: "溫中清熱，治脾胃虛寒兼濕熱", herbs: ["renshen","baizhu","ganjiang","gancao","huanglian"],
+    who: "脾胃虛寒卻又口瘡泛酸的中年茶商。" },
 ];
 const DAY_COUNT = 4;   // 一天接幾帖藥方
 
@@ -346,9 +369,6 @@ function buildRoom() {
   // 木地板（拼接條紋貼圖）
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM, ROOM), planks());
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-  // 地毯（百子櫃前）
-  const rug = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 3.2), mat(0x4a5260, 0.98));   // 沉穩藍染地毯（降艷、添冷色對比）
-  rug.rotation.x = -Math.PI / 2; rug.position.set(0, 0.01, -HALF + 2.2); scene.add(rug);
 
   // 天花板
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(ROOM, ROOM), mat(0x3a2c20, 0.98));
@@ -394,10 +414,6 @@ function buildRoom() {
     b.rotation.set(0, 0, Math.PI);   // 倒掛
     scene.add(b);
   }
-  // 研缽（擺在地上一角當道具）
-  const mortar = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.16, 16), mat(0x8a8078, 0.6));
-  mortar.position.set(2.8, 0.08, -1.0); mortar.castShadow = true; scene.add(mortar);
-
   buildCabinets();
 }
 
@@ -424,7 +440,8 @@ function planks() {
 
 // ---------- 配藥台（客人交方處） ----------
 const counterMeshes = [];
-const atlasMeshes = [];   // 配藥台上的「本草圖鑑」：準星對準可翻閱
+const atlasMeshes = [];     // 配藥台上的「本草圖鑑」：準星對準可翻閱
+const formulaMeshes = [];   // 配藥台上的「方劑譜」：準星對準可翻閱
 function buildCounter() {
   const g = new THREE.Group();
   const cz = 2.6, w = 2.2, d = 0.72, h = 0.95;
@@ -446,6 +463,14 @@ function buildCounter() {
   pages.position.set(-0.62, bookY + 0.035, cz); g.add(pages);
   const blabel = makeJarLabel("圖鑑");            // 浮在書上方的小金籤，標示可翻閱
   blabel.scale.set(0.24, 0.105, 1); blabel.position.set(-0.62, bookY + 0.26, cz); g.add(blabel);
+
+  // 檯面另一側的「方劑譜」：翻閱歷來藥方（組成、功效、已學會的藥會標亮）
+  const cover2 = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.24), mat(0x2f3a5a, 0.55));
+  cover2.position.set(0.62, bookY + 0.035, cz); cover2.castShadow = true; g.add(cover2);
+  const pages2 = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.05, 0.21), mat(0xefe6cf, 0.9));
+  pages2.position.set(0.62, bookY + 0.035, cz); g.add(pages2);
+  const blabel2 = makeJarLabel("藥方");
+  blabel2.scale.set(0.24, 0.105, 1); blabel2.position.set(0.62, bookY + 0.26, cz); g.add(blabel2);
   scene.add(g);
 
   // 交方命中盒
@@ -457,6 +482,10 @@ function buildCounter() {
   const bhit = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.4), new THREE.MeshBasicMaterial({ visible: false }));
   bhit.position.set(-0.62, bookY + 0.12, cz); bhit.userData = { type: "atlas" }; scene.add(bhit);
   atlasMeshes.push(bhit);
+  // 方劑譜命中盒
+  const fhit = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.4), new THREE.MeshBasicMaterial({ visible: false }));
+  fhit.position.set(0.62, bookY + 0.12, cz); fhit.userData = { type: "formula" }; scene.add(fhit);
+  formulaMeshes.push(fhit);
   blockers.push({ minX: -w / 2 - 0.1, maxX: w / 2 + 0.1, minZ: cz - d / 2 - 0.2, maxZ: cz + d / 2 + 0.2 });
 }
 
@@ -1080,9 +1109,11 @@ function pickAt(ndc) {
   // 配藥台（交方）
   const ch = raycaster.intersectObjects(counterMeshes, false);
   if (ch.length && (!best || ch[0].distance < best.dist)) best = { type: "counter", dist: ch[0].distance };
-  // 本草圖鑑（翻閱收集牆）：小目標、刻意對準，優先於配藥台（其命中盒較大會擋在書前）
+  // 兩本書（翻閱）：小目標、刻意對準，優先於配藥台（其命中盒較大會擋在書前）
   const ah = raycaster.intersectObjects(atlasMeshes, false);
   if (ah.length) best = { type: "atlas", dist: ah[0].distance };
+  const fh = raycaster.intersectObjects(formulaMeshes, false);
+  if (fh.length && (!best || best.type !== "atlas" || fh[0].distance < ah[0].distance)) best = { type: "formula", dist: fh[0].distance };
   return best;
 }
 
@@ -1118,6 +1149,8 @@ function updateAim() {
       else prompt.textContent = `${nameOf(id)}（這帖用不到）`;
     } else if (hit.type === "atlas") {
       prompt.textContent = "本草圖鑑 · 翻閱收集牆";
+    } else if (hit.type === "formula") {
+      prompt.textContent = "方劑譜 · 翻閱歷來藥方";
     } else { // counter
       if (!rx) prompt.textContent = "今日藥方已配齊 ✦";
       else {
@@ -1156,6 +1189,7 @@ function interact(explicit) {
   if (target.type === "jar") takeHerb(target.data.herb, target.data);
   else if (target.type === "counter") submitFormula();
   else if (target.type === "atlas") openAtlas();
+  else if (target.type === "formula") openFormulary();
 }
 
 // 從藥罐抓一味藥到藥包（只收當前藥方需要、且尚未抓過的）
@@ -1416,6 +1450,37 @@ function closeAtlas() {
 }
 function toggleAtlas() { atlasOpen ? closeAtlas() : openAtlas(); }
 
+// ---------- 方劑譜（藥方書）：翻閱歷來藥方，已學會的藥標亮 ----------
+let formulaOpen = false, formulaReturnLock = false;
+function buildFormulary() {
+  document.getElementById("formulaBody").innerHTML = FORMULAS.map((f) => {
+    const known = f.herbs.filter((id) => isMastered(id)).length;
+    const chips = f.herbs.map((id) =>
+      `<span class="fx-herb ${isMastered(id) ? "known" : ""}">${nameOf(id)}</span>`).join("");
+    return `<div class="fx-card">
+        <div class="fx-head"><span class="fx-name">${f.name}</span>
+          <span class="fx-known">已識 ${known}/${f.herbs.length} 味</span></div>
+        <div class="fx-cure">${f.cure}</div>
+        <div class="fx-herbs">${chips}</div>
+        <div class="fx-who">客人：${f.who}</div>
+      </div>`;
+  }).join("");
+}
+function openFormulary() {
+  if (formulaOpen) return;
+  buildFormulary();
+  formulaOpen = true;                        // 先設旗標，unlock 事件才不會誤彈暫停面板
+  formulaReturnLock = controls.isLocked;
+  if (controls.isLocked) controls.unlock();
+  document.getElementById("formula").classList.remove("hide");
+}
+function closeFormulary() {
+  if (!formulaOpen) return;
+  formulaOpen = false;
+  document.getElementById("formula").classList.add("hide");
+  if (formulaReturnLock && !IS_TOUCH) controls.lock();
+}
+
 // ---------- 過關面板 ----------
 function showWin() {
   const ov = document.getElementById("overlay");
@@ -1459,6 +1524,7 @@ const keys = {};
 addEventListener("keydown", (e) => {
   keys[e.code] = true;
   if (e.code === "Escape" && atlasOpen) { closeAtlas(); return; }
+  if (e.code === "Escape" && formulaOpen) { closeFormulary(); return; }
   if (e.code === "KeyB") { toggleAtlas(); return; }
   if (e.code === "KeyQ") dropHeld();
   if (e.code === "KeyM") { muted = !muted; }
@@ -1468,22 +1534,30 @@ addEventListener("keyup", (e) => (keys[e.code] = false));
 // 圖鑑開關按鈕
 document.getElementById("atlasBtn").addEventListener("click", openAtlas);
 document.getElementById("atlasClose").addEventListener("click", closeAtlas);
+document.getElementById("formulaClose").addEventListener("click", closeFormulary);
 
 // 可收闔的「出處與致謝」頁尾（stopPropagation：在開場面板上點它不會誤觸開始遊戲）
 const creditsEl = document.getElementById("credits");
 creditsEl.addEventListener("click", (e) => e.stopPropagation());
 document.getElementById("creditsToggle").addEventListener("click", () => creditsEl.classList.toggle("open"));
+// 遊戲進行中（滑鼠鎖定/手機操作時）隱藏並收起「出處與致謝」，免得展開後卡在畫面上又點不到；
+// 回到開場/暫停畫面（有游標）才再出現。
+function setPlaying(on) {
+  document.body.classList.toggle("playing", on);
+  if (on) creditsEl.classList.remove("open");
+}
 
 const overlay = document.getElementById("overlay");
 function startPlay() {
   if (pendingNext) { pendingNext = false; buildCabinet(); }   // 重新整理一輪
-  if (IS_TOUCH) { touchStarted = true; overlay.classList.add("hide"); }
+  if (IS_TOUCH) { touchStarted = true; setPlaying(true); overlay.classList.add("hide"); }
   else controls.lock();
 }
 overlay.addEventListener("click", startPlay);
-controls.addEventListener("lock", () => overlay.classList.add("hide"));
+controls.addEventListener("lock", () => { setPlaying(true); overlay.classList.add("hide"); });
 controls.addEventListener("unlock", () => {
-  if (atlasOpen) return;           // 為了開圖鑑而解鎖：不要彈暫停面板
+  if (atlasOpen || formulaOpen) return;   // 為了開書而解鎖：不要彈暫停面板
+  setPlaying(false);
   if (!pendingNext) showPause();   // 非過關的解鎖 = 按 Esc 暫停，顯示暫停面板
   overlay.classList.remove("hide");
 });
@@ -1543,7 +1617,7 @@ const joyVec = { x: 0, y: 0 };
   if (dropBtn) dropBtn.addEventListener("click", (e) => { e.stopPropagation(); dropHeld(); });
   const pauseBtn = document.getElementById("pauseBtn");
   if (pauseBtn) pauseBtn.addEventListener("click", (e) => {
-    e.stopPropagation(); touchStarted = false; joyVec.x = joyVec.y = 0; showPause(); overlay.classList.remove("hide");
+    e.stopPropagation(); touchStarted = false; setPlaying(false); joyVec.x = joyVec.y = 0; showPause(); overlay.classList.remove("hide");
   });
 })();
 
