@@ -321,6 +321,7 @@ const NATURE_NAME = { warm: "溫熱", neutral: "平和", cold: "寒涼" };
 
 // ---------- 房間尺寸 ----------
 const ROOM = 12, HALF = ROOM / 2, WALL_H = 4.0;
+const DW_HALF = 0.8, DOOR_H = 2.4;   // 前牆門洞：半寬、淨高（屋外是藥草園）
 
 // ---------- 基礎 ----------
 const canvas = document.getElementById("c");
@@ -337,7 +338,7 @@ scene.background = new THREE.Color(0x140f0a);   // 室內暖暗背景
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 100);
 const controls = new PointerLockControls(camera, document.body);
-controls.getObject().position.set(0, 1.6, 4);   // 站在房間中央偏前，面向後牆的百子櫃
+controls.getObject().position.set(0, 1.6, 1.4);   // 站在配藥台內側（藥櫃這側），面向後牆百子櫃；轉身即面對門口的客人
 scene.add(controls.getObject());
 
 const mat = (hex, rough = 0.95) => new THREE.MeshStandardMaterial({ color: hex, roughness: rough });
@@ -386,12 +387,20 @@ function buildRoom() {
     m.position.set(x, y, z); m.rotation.y = ry; m.receiveShadow = true; scene.add(m);
   };
   wall(ROOM, WALL_H, 0, WALL_H / 2, -HALF, 0);          // 後牆
-  wall(ROOM, WALL_H, 0, WALL_H / 2, HALF, 0);           // 前牆
+  // 前牆：中央留門洞（DW_HALF 寬），分左右兩段 + 楣上補牆
+  const segW = HALF - DW_HALF;                           // 每側牆段寬
+  wall(segW, WALL_H, -(DW_HALF + segW / 2), WALL_H / 2, HALF, 0);   // 前牆左段
+  wall(segW, WALL_H,  (DW_HALF + segW / 2), WALL_H / 2, HALF, 0);   // 前牆右段
+  wall(DW_HALF * 2, WALL_H - DOOR_H, 0, DOOR_H + (WALL_H - DOOR_H) / 2, HALF, 0); // 門楣上方補牆
+  // 前牆一線擋人，橫跨整片大園寬度（只有中央門洞缺口能進出，回屋必經門口）
+  blockers.push({ minX: -GARDEN_HALFW - 1, maxX: -DW_HALF, minZ: HALF - 0.3, maxZ: HALF + 0.3 });
+  blockers.push({ minX: DW_HALF, maxX: GARDEN_HALFW + 1, minZ: HALF - 0.3, maxZ: HALF + 0.3 });
   wall(ROOM, WALL_H, -HALF, WALL_H / 2, 0, Math.PI / 2);// 左牆
   wall(ROOM, WALL_H, HALF, WALL_H / 2, 0, Math.PI / 2); // 右牆
-  // 踢腳板
+  // 踢腳板（前牆的也分兩段，讓出門洞）
   const baseMat = mat(0x5e4128, 0.9);
-  [[ROOM, 0, -HALF + 0.11, 0], [ROOM, 0, HALF - 0.11, 0],
+  [[ROOM, 0, -HALF + 0.11, 0],
+   [segW, -(DW_HALF + segW / 2), HALF - 0.11, 0], [segW, (DW_HALF + segW / 2), HALF - 0.11, 0],
    [ROOM, -HALF + 0.11, 0, Math.PI / 2], [ROOM, HALF - 0.11, 0, Math.PI / 2]]
     .forEach(([w, x, z, ry]) => {
       const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.28, 0.1), baseMat);
@@ -452,8 +461,6 @@ function buildCounter() {
   top.position.set(0, h + 0.04, cz); top.castShadow = true; g.add(top);
   const tray = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.03, 0.36), mat(0x7a5a36, 0.7));
   tray.position.set(0, h + 0.1, cz); g.add(tray);
-  const sign = makeHeader("配藥台");
-  sign.scale.set(1.1, 0.28, 1); sign.position.set(0, h + 0.36, cz - d / 2 + 0.02); g.add(sign);
 
   // 檯面上的「本草圖鑑」：遊戲中用準星對準、按左鍵即可翻閱收集牆（不必放開滑鼠）
   const bookY = h + 0.08;                         // 檯面上緣
@@ -487,6 +494,252 @@ function buildCounter() {
   fhit.position.set(0.62, bookY + 0.12, cz); fhit.userData = { type: "formula" }; scene.add(fhit);
   formulaMeshes.push(fhit);
   blockers.push({ minX: -w / 2 - 0.1, maxX: w / 2 + 0.1, minZ: cz - d / 2 - 0.2, maxZ: cz + d / 2 + 0.2 });
+}
+
+// ---------- 人物（程序化低多邊形，與藥草／木櫃同風格） ----------
+// 一個工廠造出所有角色：老病人、師兄、來拜師的孩子、師父的恍惚身影——只換參數。
+// 面朝 +z（玩家從 z=4 往 -z 看，故角色面向 +z 即面對玩家）。
+const people = [];
+function buildPerson(opts = {}) {
+  const {
+    robe = 0x6b5536, trim = 0x8a6a3e, skin = 0xd8b48f, hair = 0x2a2018,
+    height = 1.0, stoop = 0, beard = false, holdScroll = false, ghost = false,
+  } = opts;
+
+  // 身影（師父）：半透明 + 青白微光、不寫深度，做出若隱若現的詩意感
+  const surf = ghost
+    ? (hex) => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.6, transparent: true,
+        opacity: 0.34, emissive: 0x9fd9e0, emissiveIntensity: 0.55, depthWrite: false })
+    : (hex, r = 0.88) => mat(hex, r);
+
+  const root = new THREE.Group();
+  const body = new THREE.Group();          // 呼吸／搖晃／前傾都掛這層
+  body.rotation.x = stoop;
+  root.add(body);
+
+  // 袍身（下襬外擴的圓柱，蓋住雙腳）＋ 前襟滾邊 ＋ 腰帶
+  const gownH = 1.02;
+  const gown = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.33, gownH, 12), surf(robe, 0.9));
+  gown.position.y = 0.04 + gownH / 2; gown.castShadow = true; body.add(gown);
+  const placket = new THREE.Mesh(new THREE.BoxGeometry(0.055, gownH * 0.9, 0.02), surf(trim, 0.8));
+  placket.position.set(0, 0.04 + gownH / 2, 0.165); body.add(placket);
+  const sash = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.1, 12), surf(trim, 0.7));
+  sash.position.y = 0.62; body.add(sash);
+  const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.2, 0.34, 12), surf(robe, 0.9));
+  chest.position.y = 0.9; chest.castShadow = true; body.add(chest);
+
+  // 頭（頸 + 臉 + 髮髻 + 眼 + 可選鬍鬚）；點頭動畫轉 headPivot
+  const shoulderY = 1.06;
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, shoulderY, 0); body.add(headPivot);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.08, 8), surf(skin, 0.7));
+  neck.position.y = 0.04; headPivot.add(neck);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 14), surf(skin, 0.62));
+  head.position.y = 0.2; head.castShadow = true; headPivot.add(head);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.119, 16, 12, 0, 6.283, 0, 1.45), surf(hair, 0.85));
+  cap.position.y = 0.205; headPivot.add(cap);
+  const bun = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 10), surf(hair, 0.85));
+  bun.position.set(0, 0.305, -0.05); headPivot.add(bun);
+  for (const sx of [-0.045, 0.045]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), surf(0x2a1c14, 0.5));
+    eye.position.set(sx, 0.2, 0.102); headPivot.add(eye);
+  }
+  if (beard) {
+    const b = new THREE.Mesh(new THREE.ConeGeometry(0.058, 0.17, 8), surf(hair, 0.9));
+    b.position.set(0, 0.08, 0.07); b.rotation.x = 0.18; headPivot.add(b);
+  }
+
+  // 雙臂（肩關節 group，可動：拿方時往前抬）
+  const arms = [];
+  for (const side of [-1, 1]) {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.19, shoulderY - 0.02, 0);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 0.5, 8), surf(robe, 0.9));
+    sleeve.position.y = -0.25; sleeve.castShadow = true; pivot.add(sleeve);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), surf(skin, 0.7));
+    hand.position.y = -0.5; pivot.add(hand);
+    pivot.rotation.x = holdScroll ? -0.55 : 0.05;
+    body.add(pivot); arms.push(pivot);
+  }
+  // 手上的藥方（小捲軸）
+  if (holdScroll) {
+    const scroll = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 10), surf(0xefe3c4, 0.85));
+    scroll.rotation.z = Math.PI / 2; scroll.position.set(0, 0.8, 0.27); body.add(scroll);
+  }
+
+  root.scale.setScalar(height);
+
+  // 動畫狀態：呼吸起伏、細微搖晃、偶爾轉頭；nod() 觸發一次性點頭
+  const baseY = body.position.y;
+  const api = {
+    root, headPivot, arms, _t: Math.random() * 6, _nod: 0,
+    tick(dt) {
+      this._t += dt;
+      body.position.y = baseY + Math.sin(this._t * 1.5) * 0.012;
+      body.rotation.z = Math.sin(this._t * 0.6) * 0.012;
+      headPivot.rotation.y = Math.sin(this._t * 0.4) * 0.06;
+      if (this._nod > 0) {
+        this._nod -= dt;
+        headPivot.rotation.x = Math.max(0, Math.sin((0.7 - this._nod) * 9)) * 0.28;
+        if (this._nod <= 0) headPivot.rotation.x = 0;
+      }
+      if (ghost) gown.material.opacity = 0.3 + Math.sin(this._t * 1.1) * 0.06;
+    },
+    nod() { this._nod = 0.7; },
+  };
+  people.push(api);
+  return api;
+}
+
+// 原型：一位拿著藥方、站在配藥台另一側面向玩家的老病人（暗線主角）
+function spawnPrototypePerson() {
+  const p = buildPerson({
+    robe: 0x55617a, trim: 0xb9c2cf, hair: 0xe8e6df, skin: 0xd9b48c,
+    beard: true, stoop: 0.1, holdScroll: true, height: 1.02,
+  });
+  p.root.position.set(0, 0, 3.5);    // 配藥台(z=2.6)門口那一側
+  p.root.rotation.y = Math.PI;       // 面向 -z（隔著配藥台面對店主）
+  scene.add(p.root);
+  // 點個頭打招呼，順便示範 nod() 之後第三幕師父收尾要用的動作
+  setTimeout(() => p.nod(), 1800);
+}
+
+// ---------- 門（前牆，客人由此進出） ----------
+function buildDoor() {
+  const z = HALF - 0.1;                         // 貼著前牆內面
+  const frameMat = mat(0x3a2616, 0.85);
+  const doorMat  = mat(0x6b4a35, 0.7);
+  const g = new THREE.Group();
+  // 門框：兩柱 + 上楣
+  const postL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.55, 0.18), frameMat);
+  postL.position.set(-0.82, 1.27, z); postL.castShadow = true; g.add(postL);
+  const postR = postL.clone(); postR.position.x = 0.82; g.add(postR);
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.18, 0.18), frameMat);
+  lintel.position.set(0, 2.46, z); lintel.castShadow = true; g.add(lintel);
+  // 兩扇門板（向內敞開，讓出門洞可進出藥草園）；以 hinge group 旋轉開合
+  const leaf = (hinge, w, openRad) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(hinge, 1.2, z - 0.03);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(w, 2.26, 0.05), doorMat);
+    panel.position.x = hinge < 0 ? w / 2 : -w / 2;
+    panel.castShadow = true; pivot.add(panel);
+    pivot.rotation.y = openRad;
+    g.add(pivot);
+  };
+  leaf(-0.72, 0.66, -1.32);   // 左扇敞開
+  leaf( 0.72, 0.66,  1.32);   // 右扇敞開
+  // 門檻
+  const sill = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.07, 0.34), frameMat);
+  sill.position.set(0, 0.035, z - 0.18); g.add(sill);
+  scene.add(g);
+}
+
+// ---------- 屋外藥草園（門外是陽光下、開闊的大香草園，呼應「屋外採藥、屋內配藥」） ----------
+const GARDEN_HALFW = 16;             // 大花園半寬（屋外左右可走範圍）
+let GARDEN_FAR = HALF + 26;          // 花園最遠可走到的 z（buildGarden 依藥種數量算出）
+const REGROW_MS = 7000;              // 採摘後幾秒長回
+function buildGarden() {
+  const g = new THREE.Group(); scene.add(g);
+  const z0 = HALF;                                // 門外起點（前牆外緣）
+
+  // 要種的藥：所有方劑會用到、且有 3D 外型的藥（這樣消耗掉的都採得回來補罐）
+  const ids = [...new Set(FORMULAS.flatMap((f) => f.herbs))].filter((id) => HERBS.find((h) => h.id === id && h.shape));
+  const herbsToGrow = ids.map((id) => HERBS.find((h) => h.id === id));
+  const depth = Math.max(24, Math.min(34, herbsToGrow.length * 0.8 + 10));
+  GARDEN_FAR = z0 + depth;
+  const cz = z0 + depth / 2;
+
+  // 大片草地 + 蜿蜒石徑
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(GARDEN_HALFW * 2, depth), mat(0x6f9a4a, 1));
+  grass.rotation.x = -Math.PI / 2; grass.position.set(0, 0, cz); grass.receiveShadow = true; g.add(grass);
+  const path = new THREE.Mesh(new THREE.PlaneGeometry(1.8, depth), mat(0x9a8b6e, 0.95));
+  path.rotation.x = -Math.PI / 2; path.position.set(0, 0.012, cz); g.add(path);
+
+  // 天空半球罩（開闊處四面是天；室內被牆與天花板擋住，維持暗調）
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(GARDEN_HALFW + depth, 24, 14),
+    new THREE.MeshBasicMaterial({ color: 0xbfe0f0, side: THREE.BackSide }));
+  sky.position.set(0, 0, cz); g.add(sky);
+  // 遠方淡淡的山影（不受光的剪影板）
+  const hills = new THREE.Mesh(new THREE.PlaneGeometry(GARDEN_HALFW * 2.4, 5),
+    new THREE.MeshBasicMaterial({ color: 0x8fb98a }));
+  hills.position.set(0, 2.0, z0 + depth - 1); g.add(hills);
+
+  // 屋外日光：高掛花園中央、有距離衰減的暖白點光（主要照大園，幾乎不影響暗調室內）
+  const sunOut = new THREE.PointLight(0xfff2dc, 1.4, GARDEN_HALFW + depth, 1.2);
+  sunOut.position.set(0, 14, cz); scene.add(sunOut);
+
+  // 藥草「散落」整片大園：每味多株、各自隨機落點、彼此交錯（不分壟、不立名牌）
+  // 認哪味藥靠走近時準星上的提示即可，保留原版四處遊走採藥的感覺。
+  const rnd = makeRng(20260628);
+  const PER_HERB_PLANTS = 4;
+  herbsToGrow.forEach((h) => {
+    for (let k = 0; k < PER_HERB_PLANTS; k++) {
+      let px = (rnd() * 2 - 1) * (GARDEN_HALFW - 2);
+      let pz = z0 + 3 + rnd() * (depth - 5);
+      if (Math.abs(px) < 1.6) px += px < 0 ? -1.8 : 1.8;   // 讓開中央石徑
+      const plant = buildPlant(h.shape, h.color, hashStr(h.id) + k * 13, HERB_VARIANT[h.id]);
+      plant.scale.setScalar(1.7 + rnd() * 0.6); plant.position.set(px, 0.0, pz); plant.rotation.y = rnd() * 6.283;
+      g.add(plant);
+      const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.0, 8), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.position.set(px, 0.6, pz); g.add(hit);
+      hit.userData = { type: "forage", data: { herb: h.id, plant, hit } };
+      forageMeshes.push(hit);
+    }
+  });
+
+  // 點綴：散落的灌木叢與石頭，讓大園更自然
+  const deco = makeRng(99);
+  for (let k = 0; k < 22; k++) {
+    const dx = (deco() * 2 - 1) * (GARDEN_HALFW - 1.5);
+    const dz = z0 + 2 + deco() * (depth - 3);
+    if (Math.abs(dx) < 2.2) continue;                    // 別擋住石徑
+    if (deco() < 0.55) {
+      const bush = new THREE.Mesh(new THREE.SphereGeometry(0.5 + deco() * 0.6, 8, 6), mat(0x4f7a3a, 0.95));
+      bush.position.set(dx, 0.4, dz); bush.castShadow = true; g.add(bush);
+    } else {
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3 + deco() * 0.35), mat(0x8a857c, 0.95));
+      rock.position.set(dx, 0.2, dz); rock.rotation.set(deco(), deco(), deco()); rock.castShadow = true; g.add(rock);
+    }
+  }
+
+  // 四周矮籬（界定大園範圍，留出門口）
+  const hedgeMat = mat(0x40632f, 0.95);
+  const farHedge = new THREE.Mesh(new THREE.BoxGeometry(GARDEN_HALFW * 2, 1.0, 0.5), hedgeMat);
+  farHedge.position.set(0, 0.5, z0 + depth - 0.3); farHedge.castShadow = true; g.add(farHedge);
+  for (const sx of [-1, 1]) {
+    const sideH = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.0, depth), hedgeMat);
+    sideH.position.set(sx * (GARDEN_HALFW - 0.3), 0.5, cz); sideH.castShadow = true; g.add(sideH);
+  }
+
+  // 門外兩側各一口大藥甕
+  for (const sx of [-1, 1]) {
+    const urn = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.24, 0.7, 14), mat(0x6b4a35, 0.6));
+    urn.position.set(sx * 1.4, 0.35, z0 + 0.9); urn.castShadow = true; g.add(urn);
+  }
+}
+
+// 採一株：入採集籃，植株藏起來（射線自動略過），幾秒後長回
+function pickFromGarden(data) {
+  basket[data.herb] = (basket[data.herb] || 0) + 1;
+  const wp = new THREE.Vector3(); data.plant.getWorldPosition(wp); wp.y += 0.3; sparkle(wp);
+  data.plant.visible = false; data.hit.visible = false;
+  sfx.pick();
+  toast(`採得「${nameOf(data.herb)}」（籃中 ${basketCount()} 株，帶回屋內補罐）`);
+  setTimeout(() => { data.plant.visible = true; data.hit.visible = true; }, REGROW_MS);
+}
+
+// 帶整籃回屋內：一次把採到的藥入庫補罐
+function depositBasket() {
+  if (basketCount() === 0) return;
+  const parts = [];
+  Object.entries(basket).forEach(([id, n]) => {
+    stock[id] = Math.min(STOCK_CAP, stockOf(id) + n);
+    parts.push(`${nameOf(id)}×${n}`);
+    delete basket[id];
+  });
+  refreshAllStock();
+  sfx.full();
+  toast(`入庫補罐：${parts.join("、")} ✦`);
 }
 
 // ---------- 標籤貼圖（emoji + 名稱） ----------
@@ -554,6 +807,9 @@ function makeCatLabel(name, color) {
 const state = { slots: [], herbsOnTable: [] };
 const slotMeshes = [];  // 可互動：抽屜命中盒（raycast 用）
 const herbMeshes = [];  // 可互動：散在桌上的乾藥材
+const forageMeshes = []; // 可互動：藥草園裡可採摘的植株命中盒
+const basket = {};       // 採集籃：{ herbId: 株數 }；帶回屋內一次入庫補罐
+const basketCount = () => Object.values(basket).reduce((a, b) => a + b, 0);
 
 const tableGroup = new THREE.Group();     // 地上散落的乾藥材（每輪重建）
 scene.add(tableGroup);
@@ -610,7 +866,20 @@ const SHELF_D = 0.34;  // 層架深度
 const JAR_Z = 0.17;    // 罐子在層板上的 local z
 const LABEL_W = 0;     // 已移除左側性味牌：置 0 讓藥罐在櫃中置中
 const CAB_BASE = 0.72; // 最底排罐子的中心高
-const PER_HERB = 2;    // 每種藥材 2 株 / 每罐容量 2（重質不重量）
+const PER_HERB = 2;    // （沿用：其他排版計算用）
+const JAR_SHOW_MAX = 6; // 罐內最多擺幾株（排成小堆，補貨時看得出變多）
+// ---------- 藥罐庫存：配藥會用完，可出門採藥補回；無計時、無懲罰 ----------
+const STOCK_START = 3, STOCK_CAP = JAR_SHOW_MAX;  // 開局半滿、上限 6（補滿一罐看得出來）
+const stock = {};
+HERBS.forEach((h) => { stock[h.id] = STOCK_START; });
+const stockOf = (id) => stock[id] || 0;
+function refreshAllStock() {                  // 依庫存更新罐內可見株數（空了就看得出來）
+  state.slots.forEach((d) => {
+    if (!d.stockMeshes) return;
+    const n = Math.min(stockOf(d.herb), d.stockMeshes.length);
+    d.stockMeshes.forEach((m, i) => { m.visible = i < n; });
+  });
+}
 const GLASS = new THREE.MeshStandardMaterial({ color: 0xd6ecec, roughness: 0.08, metalness: 0,
   transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
 const cabContainers = [];   // 兩座櫃的容器群組（含牆面旋轉）
@@ -722,6 +991,7 @@ function buildCabinet() {
 
   updateHud();
   refreshJarMastery();   // 精熟的藥罐貼上金印
+  refreshAllStock();     // 依庫存顯示罐內株數（空罐看得出來）
   startDay();
 }
 
@@ -743,20 +1013,21 @@ function makeJarSlot(parent, h, lx, ly) {
   // 名牌移出玻璃罐：放到罐子「下方」的層架空檔、貼齊櫃子前緣，完全不擋玻璃瓶
   sign.scale.set(JW * 0.78, 0.1, 1);
   sign.position.set(0, -0.10, SHELF_D - JAR_Z + 0.01); g.add(sign);
-  // 罐內備好藥材（庫存：架子＝可抓取的藥材，照方抓藥用）
-  const spacing = 0.075;
-  for (let i = 0; i < PER_HERB; i++) {
-    const off = (i - (PER_HERB - 1) / 2) * spacing;
-    const stock = makeHerbModel(h);
-    stock.scale.setScalar(0.34);
-    stock.position.set(off, 0.02, 0);
-    g.add(stock);
+  // 罐內備好藥材（庫存）：排成 3×2 小堆，補貨時罐裡看得出藥變多
+  const stockMeshes = [];
+  for (let i = 0; i < JAR_SHOW_MAX; i++) {
+    const col = i % 3, row = (i / 3) | 0;
+    const sm = makeHerbModel(h);
+    sm.scale.setScalar(0.24);
+    sm.position.set((col - 1) * 0.07, 0.02 + row * 0.015, (row - 0.5) * 0.07);
+    sm.rotation.y = i * 1.1;
+    g.add(sm); stockMeshes.push(sm);
   }
   parent.add(g);
   // 命中盒（罐子範圍）
   const hit = new THREE.Mesh(new THREE.CylinderGeometry(JR * 1.15, JR * 1.15, JH + 0.12, 8), new THREE.MeshBasicMaterial({ visible: false }));
   hit.position.set(lx, ly + JH / 2, JAR_Z); parent.add(hit);
-  const data = { herb: h.id, group: g, hit };
+  const data = { herb: h.id, group: g, hit, stockMeshes };
   hit.userData = { type: "jar", data };
   slotMeshes.push(hit); state.slots.push(data);
 }
@@ -1114,6 +1385,9 @@ function pickAt(ndc) {
   if (ah.length) best = { type: "atlas", dist: ah[0].distance };
   const fh = raycaster.intersectObjects(formulaMeshes, false);
   if (fh.length && (!best || best.type !== "atlas" || fh[0].distance < ah[0].distance)) best = { type: "formula", dist: fh[0].distance };
+  // 藥草園可採摘的植株（採滿後設 visible=false，射線自動略過）
+  const gh = raycaster.intersectObjects(forageMeshes, false);
+  if (gh.length && (!best || gh[0].distance < best.dist)) best = { type: "forage", data: gh[0].object.userData.data, dist: gh[0].distance };
   return best;
 }
 
@@ -1143,10 +1417,13 @@ function updateAim() {
     const rx = activeRx();
     if (hit.type === "jar") {
       const id = hit.data.herb;
-      if (!rx) prompt.textContent = `${nameOf(id)}（今日已收工）`;
+      if (stockOf(id) <= 0) prompt.textContent = `${nameOf(id)}（罐空·去藥草園採補）`;
+      else if (!rx) prompt.textContent = `${nameOf(id)}（今日已收工）`;
       else if (heldHas(id)) prompt.textContent = `已抓「${nameOf(id)}」`;
-      else if (rx.herbs.includes(id)) prompt.textContent = `抓藥：${nameOf(id)}`;
+      else if (rx.herbs.includes(id)) prompt.textContent = `抓藥：${nameOf(id)}　罐存 ${stockOf(id)}`;
       else prompt.textContent = `${nameOf(id)}（這帖用不到）`;
+    } else if (hit.type === "forage") {
+      prompt.textContent = `採摘：${nameOf(hit.data.herb)}　籃中 ${basketCount()} 株（帶回屋內補罐）`;
     } else if (hit.type === "atlas") {
       prompt.textContent = "本草圖鑑 · 翻閱收集牆";
     } else if (hit.type === "formula") {
@@ -1190,6 +1467,7 @@ function interact(explicit) {
   else if (target.type === "counter") submitFormula();
   else if (target.type === "atlas") openAtlas();
   else if (target.type === "formula") openFormulary();
+  else if (target.type === "forage") pickFromGarden(target.data);
 }
 
 // 從藥罐抓一味藥到藥包（只收當前藥方需要、且尚未抓過的）
@@ -1198,6 +1476,7 @@ function takeHerb(id, slot) {
   if (!rx) { toast("今日藥方都配齊了 ✨"); return; }
   if (!rx.herbs.includes(id)) { toast(`這帖用不到「${nameOf(id)}」`); sfx.back(); return; }
   if (heldHas(id)) { toast(`已抓了「${nameOf(id)}」`); return; }
+  if (stockOf(id) <= 0) { toast(`「${nameOf(id)}」罐空了，到藥草園採些回來補 🌿`); sfx.back(); return; }
   const bundle = makeHerbModel(HERBS.find((x) => x.id === id));
   bundle.userData.type = "herb"; bundle.userData.herb = id;
   camera.add(bundle); heldMeshes.push(bundle); arrangeHand();
@@ -1214,8 +1493,10 @@ function submitFormula() {
   if (!rx) { toast("今日藥方都配齊了 ✨"); return; }
   const missing = rx.herbs.filter((id) => !heldHas(id));
   if (missing.length) { toast("藥方還缺：" + missing.map(nameOf).join("、")); sfx.back(); return; }
-  // 交方成功：清空藥包
+  // 交方成功：清空藥包，並從藥罐扣掉用掉的庫存
   heldMeshes.forEach((m) => camera.remove(m)); heldMeshes = [];
+  rx.herbs.forEach((id) => { stock[id] = Math.max(0, stockOf(id) - 1); });
+  refreshAllStock();
   updateHud();
   const p = new THREE.Vector3(); camera.getWorldPosition(p);
   const d = new THREE.Vector3(); camera.getWorldDirection(d);
@@ -1623,6 +1904,7 @@ const joyVec = { x: 0, y: 0 };
 
 // ---------- 移動（平坦地板 + 牆/家具碰撞） ----------
 const dirVec = new THREE.Vector3();
+let wasOutside = false;   // 上一幀是否在屋外（用來偵測「帶籃回屋內」一次補罐）
 function inBlocker(b, x, z, r) {
   return x > b.minX - r && x < b.maxX + r && z > b.minZ - r && z < b.maxZ + r;
 }
@@ -1651,10 +1933,17 @@ function move(dt) {
     else { o.position.x = ox; o.position.z = oz; }
   }
 
-  // 房間四牆邊界
+  // 邊界：後牆固定；前方延伸到大藥草園深處。屋內 x 收在房間寬，屋外放寬到大園寬
+  // （前牆橫跨整園寬已加進 blockers，只有門洞能過，故左右切換不會穿牆）
   const EDGE = HALF - 0.5;
-  o.position.x = Math.max(-EDGE, Math.min(EDGE, o.position.x));
-  o.position.z = Math.max(-EDGE, Math.min(EDGE, o.position.z));
+  const outside = o.position.z > HALF;
+  const xLim = outside ? GARDEN_HALFW - 0.5 : EDGE;
+  o.position.x = Math.max(-xLim, Math.min(xLim, o.position.x));
+  o.position.z = Math.max(-EDGE, Math.min(GARDEN_FAR - 0.5, o.position.z));
+
+  // 帶整籃回屋內（跨過門檻回到室內）→ 一次入庫補罐
+  if (!outside && wasOutside) depositBasket();
+  wasOutside = outside;
 
   o.position.y = 1.6;   // 平地板，視角高度固定
 }
@@ -1670,6 +1959,9 @@ function animate() {
 
   // 手上的乾藥材緩緩轉（桌上的維持散落不動）
   heldMeshes.forEach((m) => { if (m.userData.plant) m.userData.plant.rotation.y += dt * 1.2; });
+
+  // 人物（呼吸、搖晃、點頭）
+  people.forEach((p) => p.tick(dt));
 
   renderer.render(scene, camera);
 }
@@ -2039,7 +2331,7 @@ renderStartPanel();
 
 // 先把場景會用到的中文字符載入（Google Fonts 的中文是按用到的字分段下載，
 // 必須在畫 canvas 貼圖前載齊，否則會 fallback 成系統字），再建場景。
-function startScene() { buildRoom(); buildCounter(); buildCabinet(); animate(); }
+function startScene() { buildRoom(); buildDoor(); buildGarden(); buildCounter(); buildCabinet(); spawnPrototypePerson(); animate(); }
 async function bootWithFont() {
   // 蒐集所有會印在 3D 標籤上的中文：藥名、性味、櫃名
   const chars = new Set();
