@@ -1,0 +1,53 @@
+Shader "HerbForager/HerbVertexColor"
+{
+    // Minimal URP-compatible shader: renders per-vertex colors with a cheap
+    // fixed-direction hemisphere light so the low-poly herbs read as 3D without
+    // pulling in the full URP lighting/shadow machinery.
+    Properties { }
+    SubShader
+    {
+        Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline" }
+        Pass
+        {
+            Name "Forward"
+            Tags { "LightMode" = "UniversalForward" }
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS   : NORMAL;
+                float4 color      : COLOR;
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                float3 normalWS    : TEXCOORD0;
+                float4 color       : COLOR;
+            };
+
+            Varyings vert(Attributes IN)
+            {
+                Varyings OUT;
+                OUT.positionHCS = GetVertexPositionInputs(IN.positionOS.xyz).positionCS;
+                OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
+                OUT.color = IN.color;
+                return OUT;
+            }
+
+            half4 frag(Varyings IN) : SV_Target
+            {
+                float3 n = normalize(IN.normalWS);
+                float key = saturate(dot(n, normalize(float3(0.3, 0.9, 0.2))));
+                float light = key * 0.75 + 0.5;             // key + fill
+                return half4(IN.color.rgb * light, 1.0);
+            }
+            ENDHLSL
+        }
+    }
+    Fallback "Universal Render Pipeline/Unlit"
+}

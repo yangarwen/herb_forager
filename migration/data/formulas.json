@@ -1,0 +1,267 @@
+[
+  {
+    "name": "四君子湯",
+    "cure": "補氣健脾，治脾胃氣虛、倦怠乏力",
+    "herbs": [
+      "renshen",
+      "baizhu",
+      "fuling",
+      "gancao"
+    ],
+    "who": "面色蒼白的綢緞莊掌櫃，說近來總提不起勁。"
+  },
+  {
+    "name": "六君子湯",
+    "cure": "益氣健脾、燥濕化痰，治氣虛痰多",
+    "herbs": [
+      "renshen",
+      "baizhu",
+      "fuling",
+      "gancao",
+      "chenpi",
+      "banxia"
+    ],
+    "who": "脾胃虛弱、食少痰多的老學究。"
+  },
+  {
+    "name": "異功散",
+    "cure": "健脾益氣、理氣和胃，治食少腹脹",
+    "herbs": [
+      "renshen",
+      "baizhu",
+      "fuling",
+      "gancao",
+      "chenpi"
+    ],
+    "who": "面黃不思飲食的小兒，由母親抱來。"
+  },
+  {
+    "name": "生脈散",
+    "cure": "益氣生津、斂陰止汗，治暑熱耗氣",
+    "herbs": [
+      "renshen",
+      "maidong",
+      "wuweizi"
+    ],
+    "who": "跑堂的小哥滿頭大汗，直喊口渴。"
+  },
+  {
+    "name": "酸棗仁湯",
+    "cure": "養血安神，治虛煩不眠、心悸盜汗",
+    "herbs": [
+      "suanzaoren",
+      "zhimu",
+      "fuling",
+      "chuanxiong",
+      "gancao"
+    ],
+    "who": "夜夜難眠的繡娘，眼下一片烏青。"
+  },
+  {
+    "name": "二陳湯",
+    "cure": "燥濕化痰、理氣和中，治痰多咳嗽",
+    "herbs": [
+      "banxia",
+      "chenpi",
+      "fuling",
+      "gancao"
+    ],
+    "who": "撐船的老把式咳了半月，痰多胸悶。"
+  },
+  {
+    "name": "理中丸",
+    "cure": "溫中健脾，治脾胃虛寒、腹痛吐瀉",
+    "herbs": [
+      "renshen",
+      "ganjiang",
+      "baizhu",
+      "gancao"
+    ],
+    "who": "受了寒、腹痛便溏的腳夫。"
+  },
+  {
+    "name": "四逆湯",
+    "cure": "回陽救逆，治四肢厥冷、陽氣衰微",
+    "herbs": [
+      "fuzi",
+      "ganjiang",
+      "gancao"
+    ],
+    "who": "渾身發冷、手足冰涼的病重老翁，家人急來求藥。"
+  },
+  {
+    "name": "當歸補血湯",
+    "cure": "補氣生血，治血虛發熱、面白乏力",
+    "herbs": [
+      "huangqi",
+      "danggui"
+    ],
+    "who": "產後體虛、面色無華的少婦。"
+  },
+  {
+    "name": "左金丸",
+    "cure": "清肝瀉火、降逆止嘔，治脅痛吞酸",
+    "herbs": [
+      "huanglian",
+      "wuzhuyu"
+    ],
+    "who": "動輒泛酸、脅肋脹痛的帳房先生。"
+  },
+  {
+    "name": "芍藥甘草湯",
+    "cure": "緩急止痛，治腿腳攣急、脘腹疼痛",
+    "herbs": [
+      "baishao",
+      "gancao"
+    ],
+    "who": "小腿抽筋、夜裡疼醒的老農。"
+  },
+  {
+    "name": "桔梗湯",
+    "cure": "宣肺利咽，治咽喉腫痛、咳嗽",
+    "herbs": [
+      "jiegeng",
+      "gancao"
+    ],
+    "who": "嗓子腫痛、說不出話的說書先生。"
+  },
+  {
+    "name": "百合知母湯",
+    "cure": "養陰清熱，治虛熱心煩、神思恍惚",
+    "herbs": [
+      "baihe",
+      "zhimu"
+    ],
+    "who": "病後虛煩、坐臥不安的書生。"
+  },
+  {
+    "name": "甘草乾薑湯",
+    "cure": "溫中復陽，治虛寒、手足不溫",
+    "herbs": [
+      "gancao",
+      "ganjiang"
+    ],
+    "who": "畏寒、口淡多涎的車夫。"
+  },
+  {
+    "name": "保元湯",
+    "cure": "補氣溫陽，治元氣虛弱、倦怠畏寒",
+    "herbs": [
+      "renshen",
+      "huangqi",
+      "gancao",
+      "rougui"
+    ],
+    "who": "氣弱畏寒、說話低微的老掌櫃，動則氣喘。"
+  },
+  {
+    "name": "佛手散",
+    "cure": "養血活血、行氣調經，婦人良方（即芎歸湯）",
+    "herbs": [
+      "danggui",
+      "chuanxiong"
+    ],
+    "who": "經期腹痛、面色不華的繡坊姑娘。"
+  },
+  {
+    "name": "三黃瀉心湯",
+    "cure": "瀉火解毒，治火熱亢盛、心煩吐衄",
+    "herbs": [
+      "dahuang",
+      "huanglian",
+      "huangqin"
+    ],
+    "who": "面紅目赤、心煩易怒、時而鼻血的壯漢。"
+  },
+  {
+    "name": "附子理中丸",
+    "cure": "溫陽散寒、補益脾胃，治脾胃虛寒甚",
+    "herbs": [
+      "fuzi",
+      "renshen",
+      "ganjiang",
+      "baizhu",
+      "gancao"
+    ],
+    "who": "腹冷喜暖、下利清穀、手足不溫的老農。"
+  },
+  {
+    "name": "葛根芩連湯",
+    "cure": "解表清裡，治身熱下利、協熱泄瀉",
+    "herbs": [
+      "gegen",
+      "huangqin",
+      "huanglian",
+      "gancao"
+    ],
+    "who": "暑天貪涼、身熱腹瀉、肛門灼熱的少年。"
+  },
+  {
+    "name": "黃芩湯",
+    "cure": "清熱止利，治熱瀉熱痢、腹痛",
+    "herbs": [
+      "huangqin",
+      "baishao",
+      "gancao",
+      "hongzao"
+    ],
+    "who": "腹痛下痢、瀉而臭穢、口苦的趕考書生。"
+  },
+  {
+    "name": "交泰丸",
+    "cure": "交通心腎，治心腎不交、心煩失眠",
+    "herbs": [
+      "huanglian",
+      "rougui"
+    ],
+    "who": "夜不能寐、心煩口乾、多夢的賬房先生。"
+  },
+  {
+    "name": "戊己丸",
+    "cure": "疏肝清熱、和胃止痛，治肝脾不和",
+    "herbs": [
+      "huanglian",
+      "wuzhuyu",
+      "baishao"
+    ],
+    "who": "脅脹泛酸、腹痛腸鳴的綢緞莊老闆娘。"
+  },
+  {
+    "name": "半夏瀉心湯",
+    "cure": "寒熱平調、消痞散結，治心下痞滿嘔利",
+    "herbs": [
+      "banxia",
+      "huangqin",
+      "huanglian",
+      "renshen",
+      "ganjiang",
+      "gancao",
+      "hongzao"
+    ],
+    "who": "心下痞悶、嘔惡腸鳴、寒熱夾雜的船家。"
+  },
+  {
+    "name": "麥門冬湯",
+    "cure": "潤肺養胃、降逆下氣，治虛熱咳逆、咽乾",
+    "herbs": [
+      "maidong",
+      "banxia",
+      "renshen",
+      "gancao",
+      "hongzao"
+    ],
+    "who": "乾咳少痰、咽乾氣逆、病後虛羸的私塾先生。"
+  },
+  {
+    "name": "連理湯",
+    "cure": "溫中清熱，治脾胃虛寒兼濕熱",
+    "herbs": [
+      "renshen",
+      "baizhu",
+      "ganjiang",
+      "gancao",
+      "huanglian"
+    ],
+    "who": "脾胃虛寒卻又口瘡泛酸的中年茶商。"
+  }
+]

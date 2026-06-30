@@ -1,0 +1,6 @@
+# Cloned reference repo (has its own git history) — not part of this project
+/agency-agents/
+
+# OS
+.DS_Store
+Thumbs.db
