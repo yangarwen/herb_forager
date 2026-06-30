@@ -13,6 +13,9 @@ namespace HerbForager.Prototype
         public float moveSpeed = 3f;          // matches fp.js desktop speed
         public float lookSensitivity = 0.08f;
 
+        // play-area bounds (set by the bootstrap): room is narrow, garden is wide
+        public float roomHalf = 6f, gardenHalfW = 11f, gardenFar = 28f;
+
         private CharacterController cc;
         private float yaw, pitch;
 
@@ -52,6 +55,14 @@ namespace HerbForager.Prototype
             Vector3 dir = (transform.right * x + transform.forward * z);
             if (dir.sqrMagnitude > 1f) dir.Normalize();
             cc.SimpleMove(dir * moveSpeed);   // SimpleMove applies gravity
+
+            // keep the player on solid ground: narrow room indoors, wide garden outdoors
+            Vector3 p = transform.position;
+            bool outside = p.z > roomHalf;
+            float xLim = (outside ? gardenHalfW : roomHalf) - 0.4f;
+            p.x = Mathf.Clamp(p.x, -xLim, xLim);
+            p.z = Mathf.Clamp(p.z, -(roomHalf - 0.4f), gardenFar - 0.4f);
+            transform.position = p;
         }
 
         void LockCursor(bool on)

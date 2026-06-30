@@ -55,25 +55,31 @@ namespace HerbForager.EditorTools
 
         [MenuItem("HerbForager/Build Windows (.exe)")]
         public static void BuildWindows()
+            => Build("Build/Windows/HerbForager.exe", BuildTarget.StandaloneWindows64);
+
+        [MenuItem("HerbForager/Build macOS (.app)")]
+        public static void BuildMac()
+            => Build("Build/Mac/HerbForager.app", BuildTarget.StandaloneOSX);
+
+        static void Build(string relativePath, BuildTarget target)
         {
             FixShaders();   // make sure runtime shaders survive stripping
 
-            string dir = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Build");
-            string exe = Path.Combine(dir, "HerbForager.exe");
-            Directory.CreateDirectory(dir);
+            string root = Directory.GetParent(Application.dataPath).FullName;
+            string outPath = Path.Combine(root, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(outPath));
 
-            var report = BuildPipeline.BuildPlayer(
-                new[] { Scene }, exe, BuildTarget.StandaloneWindows64, BuildOptions.None);
-
+            var report = BuildPipeline.BuildPlayer(new[] { Scene }, outPath, target, BuildOptions.None);
             var s = report.summary;
             if (s.result == UnityEditor.Build.Reporting.BuildResult.Succeeded)
             {
-                Debug.Log($"[Build] OK → {exe}  ({s.totalSize / (1024 * 1024)} MB)");
-                EditorUtility.RevealInFinder(exe);
+                Debug.Log($"[Build] {target} OK → {outPath}  ({s.totalSize / (1024 * 1024)} MB)");
+                EditorUtility.RevealInFinder(outPath);
             }
             else
             {
-                Debug.LogError($"[Build] {s.result} — {s.totalErrors} error(s). See console above.");
+                Debug.LogError($"[Build] {target} {s.result} — {s.totalErrors} error(s). " +
+                               "If the target module is missing, install it in Unity Hub.");
             }
         }
     }

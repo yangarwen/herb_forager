@@ -131,10 +131,19 @@ namespace HerbForager.Prototype
         {
             for (int i = 0; i < _heldGo.Count; i++)
             {
-                float off = (i - (_heldGo.Count - 1) / 2f) * 0.22f;
-                _heldGo[i].transform.localPosition = new Vector3(0.3f + off, -0.32f, 0.8f);
-                _heldGo[i].transform.localRotation = Quaternion.identity;
-                _heldGo[i].transform.localScale = Vector3.one * 1.4f;
+                var go = _heldGo[i];
+                // normalize to a small, uniform display size so big herbs don't block the view
+                float scale = 0.16f;
+                if (go.TryGetComponent<MeshFilter>(out var mf) && mf.sharedMesh != null)
+                {
+                    var s = mf.sharedMesh.bounds.size;
+                    float m = Mathf.Max(s.x, Mathf.Max(s.y, s.z));
+                    if (m > 0.001f) scale = 0.16f / m;
+                }
+                float off = (i - (_heldGo.Count - 1) / 2f) * 0.14f;
+                go.transform.localScale = Vector3.one * scale;
+                go.transform.localPosition = new Vector3(0.26f + off, -0.26f, 0.7f);   // lower-right, off-center
+                go.transform.localRotation = Quaternion.identity;
             }
         }
     }

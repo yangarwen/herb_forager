@@ -71,10 +71,19 @@ namespace HerbForager.Prototype
 
             // today's commission
             var rx = gs.day.Current;
-            var box = new GUIStyle(GUI.skin.box) { fontSize = 15, alignment = TextAnchor.UpperLeft, richText = true, padding = new RectOffset(12, 12, 10, 10) };
+            var box = new GUIStyle(GUI.skin.box)
+            {
+                fontSize = 15,
+                alignment = TextAnchor.UpperLeft,
+                richText = true,
+                wordWrap = true,
+                padding = new RectOffset(12, 12, 10, 10)
+            };
+            const float boxW = 540f;
             if (gs.day.Done)
             {
-                GUI.Box(new Rect(16, 40, 360, 78), "今日委託　全數配齊 ✦\n<b>今日收工，過關！</b>\n<size=13>按 R 再來一天</size>", box);
+                string done = "今日委託　全數配齊 ✦\n<b>今日收工，過關！</b>\n<size=13>按 R 再來一天</size>";
+                GUI.Box(new Rect(16, 40, boxW, box.CalcHeight(new GUIContent(done), boxW)), done, box);
                 return;
             }
             var t = new StringBuilder();
@@ -90,7 +99,8 @@ namespace HerbForager.Prototype
                 if (i < rx.herbs.Count - 1) t.Append("　");
             }
             t.Append($"\n<size=12>客人：{rx.who}</size>");
-            GUI.Box(new Rect(16, 40, 540, 118), t.ToString(), box);
+            string content = t.ToString();
+            GUI.Box(new Rect(16, 40, boxW, box.CalcHeight(new GUIContent(content), boxW)), content, box);
         }
     }
 }

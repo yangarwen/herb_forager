@@ -12,9 +12,14 @@ namespace HerbForager.Prototype
         {
             if (_font == null)
                 _font = Font.CreateDynamicFontFromOSFont(
-                    new[] { "Microsoft JhengHei UI", "Microsoft JhengHei",
-                            "Microsoft YaHei UI", "Microsoft YaHei",
-                            "PMingLiU", "SimSun" }, 16);
+                    new[] {
+                        // Windows CJK
+                        "Microsoft JhengHei UI", "Microsoft JhengHei",
+                        "Microsoft YaHei UI", "Microsoft YaHei", "PMingLiU", "SimSun",
+                        // macOS CJK (so Chinese shows on a Mac build too)
+                        "PingFang TC", "PingFang SC", "Heiti TC", "Heiti SC",
+                        "STHeiti", "Hiragino Sans GB",
+                    }, 16);
             return _font;
         }
     }
